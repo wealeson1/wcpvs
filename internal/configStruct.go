@@ -1,0 +1,40 @@
+package internal
+
+type ConfigStruct struct {
+	HeaderWordlist    string
+	QueryWordlist     string
+	Threads           int
+	ReqRate           float64
+	Verbosity         int
+	DoPost            bool
+	ContentType       string
+	QuerySeparator    string
+	CacheBuster       string
+	TimeOut           int
+	DeclineCookies    bool
+	Force             bool
+	UseHTTP           bool
+	CLDiff            int
+	HMDiff            int
+	CacheHeader       string
+	DisableColor      bool
+	IgnoreStatus      []int
+	RecInclude        string
+	RecExclude        []string
+	RecDomains        []string
+	RecLimit          int
+	Urls              []string
+	Cookies           []string
+	Headers           []string
+	Parameters        []string
+	Body              string
+	OnlyTest          string
+	SkipTest          string
+	GeneratePath      string
+	GenerateReport    bool
+	EscapeJSON        bool
+	GenerateCompleted bool
+	ProxyCertPath     string
+	ProxyURL          string
+	TargetStruct      TargetStruct
+}
