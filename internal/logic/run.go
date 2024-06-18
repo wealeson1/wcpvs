@@ -1,0 +1,5 @@
+package tecniques
+
+func Run() {
+	
+}
