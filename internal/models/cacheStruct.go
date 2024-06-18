@@ -1,4 +1,4 @@
-package internal
+package models
 
 type CacheStruct struct {
 	CBwasFound         bool
@@ -9,7 +9,7 @@ type CacheStruct struct {
 	NoCache            bool
 	TimeIndicator      bool
 	CBName             string
-	CKIsGet            bool
+	CKIsAnyGet         bool
 	CKIsHeader         bool
 	CkIsCookie         bool
 	CKName             string
@@ -18,4 +18,6 @@ type CacheStruct struct {
 	OrderCustomHeaders map[int]string
 	HeaderCacheKeys    []string
 	CookieCacheKeys    []string
+	AnyGetParamsInResp bool
+	InRespOfGetParams  []string
 }

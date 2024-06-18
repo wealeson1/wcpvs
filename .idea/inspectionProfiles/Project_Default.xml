@@ -1,0 +1,16 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="GoDfaErrorMayBeNotNil" enabled="true" level="WARNING" enabled_by_default="true">
+      <functions>
+        <function importPath="github.com/wealeson1/wcpvs/internal/logic/tecniques" name="GetResp" />
+        <function importPath="github.com/wealeson1/wcpvs/pkg/utils" name="CloneRequest" />
+        <function importPath="github.com/projectdiscovery/katana/pkg/engine/standard" name="New" />
+      </functions>
+      <methods>
+        <method importPath="github.com/wealeson1/wcpvs/internal/logic" receiver="*FindCacheKeys" name="GetRespByDefHeader" />
+        <method importPath="github.com/wealeson1/wcpvs/internal/logic" receiver="*FindCacheKeys" name="GetRespByDefHeader2" />
+      </methods>
+    </inspection_tool>
+  </profile>
+</component>

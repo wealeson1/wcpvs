@@ -1,44 +1,52 @@
-package dos
+package cpdos
 
 import (
 	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal"
+	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
+	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"strings"
 )
 
+var RDDTecniques *RDD
+
 type RDD struct {
-	payload string
 }
 
 func NewRdd() *RDD {
-	return &RDD{
-		payload: utils.RandomString(2048),
-	}
+	return &RDD{}
 }
 
-func (r *RDD) Scan(target *internal.TargetStruct) {
+func init() {
+	RDDTecniques = NewRdd()
+}
+
+func (r *RDD) Scan(target *models.TargetStruct) {
 	primitiveStatusCode := target.Response.StatusCode
-	if primitiveStatusCode > 200 && primitiveStatusCode < 300 {
-		if !target.Cache.CKIsGet {
+	if primitiveStatusCode > 300 && primitiveStatusCode < 400 {
+		if !target.Cache.CKIsAnyGet {
 			tmpReq, err := utils.CloneRequest(target.Request)
 			if err != nil {
 				gologger.Fatal().Msgf("%s\n", err)
 				return
 			}
-			randomParam := utils.RandomString(10)
+			randomParam := utils.RandomString(5)
 			randomValue := utils.RandomString(10)
 			values := tmpReq.URL.Query()
 			values.Set(randomParam, randomValue)
 			tmpReq.URL.RawQuery = values.Encode()
-			resp, err := utils.CommonClient.Do(tmpReq)
+			pvMap := map[string]string{
+				randomParam: randomValue,
+			}
+			resp, err := tecniques.GetResp(target, tecniques.GET, pvMap)
 			if err != nil {
 				gologger.Fatal().Msgf("%s\n", err)
 				return
 			}
 			location := resp.Header.Get("Location")
 			if strings.Contains(location, randomParam) {
-				gologger.Info().Msgf("目标%s 存在CPDOS漏洞，检测技术是RDD", target.Request.URL)
+				gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using RDD.", target.Request.URL)
+				return
 			}
 		}
 	}

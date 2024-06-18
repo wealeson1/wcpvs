@@ -1,9 +1,9 @@
-package dos
+package cpdos
 
 import (
 	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
+	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 )
 
@@ -25,25 +25,34 @@ func NewHmo() *Hmo {
 	}
 }
 
-func (h *Hmo) Scan(target *internal.TargetStruct) {
-	for _, header := range h.headers {
-		for _, value := range h.values {
-			resp, err := tecniques.GetResp(target, tecniques.HEADER, map[string]string{header: value})
+func (h *Hmo) Scan(target *models.TargetStruct) {
+	payloadMap := make(map[string]string)
+	for _, value := range h.values {
+		for _, header := range h.headers {
+			payloadMap[header] = value
+		}
+		resp, err := tecniques.GetResp(target, tecniques.HEADER, payloadMap)
+		if err != nil {
+			gologger.Error().Msgf(err.Error())
+			return
+		}
+		//长度相差大于10
+		//diff := math.Abs(float64(resp.ContentLength - target.Response.ContentLength))
+		// 有时候某些站点会有一些意外情况
+		if resp.StatusCode != target.Response.StatusCode {
+			tmpReq1, err := utils.CloneRequest(resp.Request)
 			if err != nil {
 				gologger.Error().Msgf(err.Error())
 				return
 			}
-			if resp.StatusCode != target.Response.StatusCode || resp.ContentLength != target.Response.ContentLength {
-				tmpReq1, err := utils.CloneRequest(resp.Request)
+			for range 3 {
+				resp, err := utils.CommonClient.Do(tmpReq1)
 				if err != nil {
-					gologger.Error().Msgf(err.Error())
-					return
+					continue
 				}
-				tmpReq2, _ := utils.CloneRequest(resp.Request)
-				tmpResp1, _ := utils.CommonClient.Do(tmpReq1)
-				tmpResp2, _ := utils.CommonClient.Do(tmpReq2)
-				if tmpResp1.StatusCode == tmpResp2.StatusCode || tmpResp1.ContentLength == tmpResp2.ContentLength {
-					gologger.Info().Msgf("目标%s 存在CPDOS漏洞，检测技术是HMC", target.Request.URL)
+				if utils.IsCacheHit(target, &resp.Header) {
+					gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using HMO and %v.\n", target.Request.URL, payloadMap)
+					return
 				}
 			}
 		}

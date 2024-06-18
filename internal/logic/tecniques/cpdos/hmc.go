@@ -1,9 +1,9 @@
-package dos
+package cpdos
 
 import (
 	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
+	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 )
 
@@ -25,28 +25,34 @@ func NewHmc() *Hmc {
 	}
 }
 
-func (h *Hmc) Scan(target *internal.TargetStruct) {
+func (h *Hmc) Scan(target *models.TargetStruct) {
 	for _, header := range h.headers {
 		for _, value := range h.values {
 			resp, err := tecniques.GetResp(target, tecniques.HEADER, map[string]string{header: value})
 			if err != nil {
-				gologger.Error().Msg(err.Error())
+				continue
 			}
+			utils.CloseReader(resp.Body)
 			if resp.StatusCode != target.Response.StatusCode {
 				tmpReq1, err := utils.CloneRequest(resp.Request)
 				if err != nil {
 					gologger.Error().Msg(err.Error())
 					return
 				}
-				tmpReq2, _ := utils.CloneRequest(tmpReq1)
-				tmpResp1, err := utils.CommonClient.Do(tmpReq1)
-				if err != nil {
-					gologger.Error().Msg(err.Error())
-					return
-				}
-				tmpResp2, _ := utils.CommonClient.Do(tmpReq2)
-				if tmpResp1.StatusCode == tmpResp2.StatusCode {
-					gologger.Info().Msgf("目标%s 存在CPDOS漏洞，检测技术是Hmc", target.Request.URL)
+
+				for range 3 {
+					resp, err := utils.CommonClient.Do(tmpReq1)
+					if err != nil {
+						continue
+					}
+					tmpReq1, err = utils.CloneRequest(resp.Request)
+					if err != nil {
+						continue
+					}
+					if utils.IsCacheHit(target, &resp.Header) {
+						gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using Hmc. %s:%s.\n", target.Request.URL, header, value)
+					}
+					utils.CloseReader(resp.Body)
 				}
 			}
 		}

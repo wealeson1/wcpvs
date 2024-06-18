@@ -2,10 +2,17 @@ package utils
 
 import (
 	"bytes"
+	"github.com/projectdiscovery/gologger"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
+
+var CommonClient = http.DefaultClient
+
+func init() {
+}
 
 // CloneRequest 克隆一个 *http.Request 对象，包括其方法、URL、头字段和正文。
 func CloneRequest(r *http.Request) (*http.Request, error) {
@@ -60,4 +67,35 @@ func CloneRequest(r *http.Request) (*http.Request, error) {
 		req.ContentLength = int64(len(bodyBytes))
 	}
 	return req, nil
+}
+
+// AddParam 根据不同的请求方法添加参数，目前先不考虑其他类型的参数，JSON或者XML。
+func AddParam(req *http.Request, method, paramName, paramValue string) *http.Request {
+	if method == "GET" {
+		// Parse the URL and add the query parameter
+		u := req.URL
+		q := u.Query()
+		q.Del(paramName)
+		q.Add(paramName, paramValue)
+		u.RawQuery = q.Encode()
+		req.URL = u
+	} else if method == "POST" {
+		// Ensure the content type is application/x-www-form-urlencoded
+		if req.Header.Get("Content-Type") == "" {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+
+		// Parse the existing form values
+		err := req.ParseForm()
+		if err != nil {
+			gologger.Error().Msg(err.Error())
+			return nil
+		}
+		req.Form.Add(paramName, paramValue)
+
+		// Re-encode form values and update the request body
+		req.Body = io.NopCloser(strings.NewReader(req.Form.Encode()))
+		req.ContentLength = int64(len(req.Form.Encode()))
+	}
+	return req
 }

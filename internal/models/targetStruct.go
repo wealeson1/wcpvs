@@ -1,6 +1,8 @@
-package internal
+package models
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type TargetStruct struct {
 	Request  *http.Request

