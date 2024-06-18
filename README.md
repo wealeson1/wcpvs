@@ -1,77 +1,84 @@
-```markdown
 # Web Cache Poisoning Vulnerability Scanner (WCPVS)
 
 ## Overview
-Web Cache Poisoning Vulnerability Scanner (WCPVS) 是一个用于检测Web缓存投毒漏洞的工具。Web缓存投毒是一种攻击技术，攻击者利用它来操纵Web缓存，导致缓存中存储恶意内容。
+The Web Cache Poisoning Vulnerability Scanner (WCPVS) is a tool designed to detect web cache poisoning vulnerabilities. Web cache poisoning is an attack technique where attackers manipulate web caches to store malicious content.
 
 ## Features
-- 检测Web应用是否容易受到Web缓存投毒攻击。
-- 支持多种Web服务器和缓存策略。
+- Detects if web applications are vulnerable to web cache poisoning attacks.
+- Supports various web servers and caching strategies.
 
 ## Installation
-1. 克隆仓库到本地机器
+1. Clone the repository to your local machine:
    ```
-git clone https://github.com/wealeson1/wcpvs.git
+   git clone https://github.com/wealeson1/wcpvs.git
    ```
-2. 进入项目目录
+2. Navigate to the project directory:
    ```
-cd wcpvs/cmd
+   cd wcpvs/cmd
    ```
-3. 安装编译
+3. Build the project:
    ```
-go build wcpvs.go
+   go build wcpvs.go
    ```
 
 ## Usage
-如何使用WCPVS进行扫描：
+To scan using WCPVS:
+
+Simple Scan.
 
 ```
-./wcpvs -t https://www.example.com/ 
+./wcpvs -t https://www.example.com/
 
+```
+Using the Crawler.
+```
+./wcpvs -t https://www.example.com/ -c -hl -md 3
 
+```
+
+Command Line Options for WCPVS.
+```
 INPUT:
--l, -list string      input file containing list of hosts to process
--rr, -request string  file containing raw request
--t, -target string[]  input target host(s) to probe
+-l, -list string      Input file containing list of hosts to process
+-rr, -request string  File containing raw request
+-t, -target string[]  Input target host(s) to probe
 
 CRAWL:
--c, -crawler            enable crawling of the target site
--fr, -follow-redirects  follow redirects
--hl, -headless          enable headless mode
--sc, -system-chrome     use system chrome
+-c, -crawler            Enable crawling of the target site
+-fr, -follow-redirects  Follow redirects
+-hl, -headless          Enable headless mode
+-sc, -system-chrome     Use system Chrome
 -md, -max-depth int     Maximum depth to crawl (default 1)
 
 HTTP OPTIONS:
--h2, -http2                   use HTTP2 protocol
--to, -timeout int             timeout in seconds (default 10)
--pc, -proxy-cert string       path to proxy certificate
--purl, -proxy-url string      proxy URL to use
--P, -post                     use POST method
--ct, -content-type string     content type for POST requests (default "application/json")
--qs, -query-separator string  separator for query parameters (default "&")
--cb, -cache-buster string     cache buster value
--dc, -decline-cookies         decline cookies
--threads int                  number of concurrent threads (default 10)
+-h2, -http2                   Use HTTP2 protocol
+-to, -timeout int             Timeout in seconds (default 10)
+-pc, -proxy-cert string       Path to proxy certificate
+-purl, -proxy-url string      Proxy URL to use
+-P, -post                     Use POST method
+-ct, -content-type string     Content type for POST requests (default "application/json")
+-qs, -query-separator string  Separator for query parameters (default "&")
+-cb, -cache-buster string     Cache buster value
+-dc, -decline-cookies         Decline cookies
+-threads int                  Number of concurrent threads (default 10)
 
 DIFF OPTIONS:
--cld, -cl-diff int  content length difference
--hmd, -hm-diff int  hash match difference
+-cld, -cl-diff int  Content length difference
+-hmd, -hm-diff int  Hash match difference
 
 OUTPUT OPTIONS:
--ch, -cache-header string  cache header value
--nc, -disable-color        disable color in output
--ri, -rec-include string   regex to include
--rl, -rec-limit int        recursion limit
+-ch, -cache-header string  Cache header value
+-nc, -disable-color        Disable color in output
+-ri, -rec-include string   Regex to include
+-rl, -rec-limit int        Recursion limit
 
 MISCELLANEOUS:
--hwp, -header-word-path string  file path of headers
--qwp, -query-word-path string   file path of query parameters
-
+-hwp, -header-word-path string  File path of headers
+-qwp, -query-word-path string   File path of query parameters
 ```
+
 ## Contributing
-欢迎贡献代码或提出改进建议。
+Contributions and suggestions for improvements are welcome.
 
 ## License
-该项目采用 [apache2 License](LICENSE)。
-```
-
+This project is licensed under the [Apache 2.0 License](LICENSE).
