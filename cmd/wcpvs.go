@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/wealeson1/wcpvs/internal/logic"
+	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/internal/runner"
 	"github.com/wealeson1/wcpvs/pkg/utils"
+	"io"
 	"sync"
 )
 
@@ -27,29 +28,35 @@ func main() {
 				if !ok {
 					return
 				}
-				logic.Run(target)
+				runner.Run(target)
 			}
 		}()
 	}
 
 	for _, url := range runner.ScanOptions.Urls {
+		if resp, err := utils.CommonClient.Get(url); err != nil || resp.StatusCode > 400 {
+			continue
+		}
 		if !runner.ScanOptions.Crawler {
-			_, err := utils.CommonClient.Get(url)
+			primitiveResp, err := utils.CommonClient.Get(url)
+			if err != nil || primitiveResp == nil {
+				continue
+			}
+			respBody, err := io.ReadAll(primitiveResp.Body)
 			if err != nil {
+				gologger.Error().Msg("wcpvs.main:" + err.Error())
 				continue
 			}
-			primitiveResp, _ := utils.CommonClient.Get(url)
-			if primitiveResp == nil {
-				continue
-			}
+			utils.CloseReader(primitiveResp.Body)
 			target := &models.TargetStruct{
 				Request:  primitiveResp.Request,
 				Response: primitiveResp,
+				RespBody: respBody,
 				Cache:    &models.CacheStruct{},
 			}
 			TargetsChannel <- target
 		} else {
-			logic.Crawl(url, TargetsChannel)
+			runner.Crawl(url, TargetsChannel)
 		}
 	}
 
