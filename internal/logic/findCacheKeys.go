@@ -113,6 +113,67 @@ func (f *FindCacheKeys) FindCacheKeyByGet(target *models.TargetStruct) bool {
 	return false
 }
 
+func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct) (bool, []string) {
+	var wg sync.WaitGroup
+	var headerValues sync.Map
+	var search func(target *models.TargetStruct, headers []string)
+
+	search = func(target *models.TargetStruct, headers []string) {
+		defer wg.Done()
+		if len(headers) == 0 {
+			return
+		}
+		mid := len(headers) / 2
+		leftPart := headers[:mid]
+		rightPart := headers[mid:]
+
+		tryRequest := func(headers []string) (*http.Response, error) {
+			tmpReq, _ := utils.CloneRequest(target.Request)
+			hvMap := make(map[string]string, len(headers))
+			for _, h := range headers {
+				hvMap[h] = utils.RandomString(5)
+			}
+			return f.GetRespByDefHeader(tmpReq, hvMap, target.Response.StatusCode)
+		}
+
+		var resp *http.Response
+		var err error
+		for range 3 {
+			time.Sleep(500 * time.Millisecond)
+			resp, err = tryRequest(headers)
+			if err == nil && resp != nil && utils.IsCacheHit(target, &resp.Header) {
+				return
+			}
+		}
+
+		if resp != nil {
+			defer utils.CloseReader(resp.Body)
+			if len(headers) == 1 {
+				if resp.StatusCode == target.Response.StatusCode && utils.IsCacheMiss(target, &resp.Header) {
+					headerValues.Store(headers[0], utils.RandomString(5))
+				}
+				return
+			}
+		}
+
+		wg.Add(2)
+		go search(target, leftPart)
+		go search(target, rightPart)
+	}
+
+	wg.Add(1)
+	search(target, f.HeaderWordList)
+	wg.Wait()
+
+	var cacheKeyList []string
+	headerValues.Range(func(key, value interface{}) bool {
+		cacheKeyList = append(cacheKeyList, key.(string))
+		return true
+	})
+
+	return len(cacheKeyList) != 0, cacheKeyList
+}
+
 func (f *FindCacheKeys) BinarySearchHeaders2(target *models.TargetStruct) (bool, []string) {
 	// 使用WaitGroup来等待所有goroutines完成
 	var wg sync.WaitGroup
@@ -182,65 +243,8 @@ func (f *FindCacheKeys) BinarySearchHeaders2(target *models.TargetStruct) (bool,
 	return false, cacheKeyList
 }
 
-func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct) (bool, []string) {
-	var wg sync.WaitGroup
-	var headerValues sync.Map
-	var search func(target *models.TargetStruct, headers []string)
-
-	search = func(target *models.TargetStruct, headers []string) {
-		defer wg.Done()
-		if len(headers) == 0 {
-			return
-		}
-		mid := len(headers) / 2
-		leftPart := headers[:mid]
-		rightPart := headers[mid:]
-
-		tryRequest := func(headers []string) (*http.Response, error) {
-			tmpReq, _ := utils.CloneRequest(target.Request)
-			hvMap := make(map[string]string, len(headers))
-			for _, h := range headers {
-				hvMap[h] = utils.RandomString(5)
-			}
-			return f.GetRespByDefHeader(tmpReq, hvMap, target.Response.StatusCode)
-		}
-
-		var resp *http.Response
-		var err error
-		for range 3 {
-			time.Sleep(500 * time.Millisecond)
-			resp, err = tryRequest(headers)
-			if err == nil && resp != nil && utils.IsCacheHit(target, &resp.Header) {
-				return
-			}
-		}
-
-		if resp != nil {
-			defer utils.CloseReader(resp.Body)
-			if len(headers) == 1 {
-				if resp.StatusCode == target.Response.StatusCode && utils.IsCacheMiss(target, &resp.Header) {
-					headerValues.Store(headers[0], utils.RandomString(5))
-				}
-				return
-			}
-		}
-
-		wg.Add(2)
-		go search(target, leftPart)
-		go search(target, rightPart)
-	}
-
-	wg.Add(1)
-	search(target, f.HeaderWordList)
-	wg.Wait()
-
-	var cacheKeyList []string
-	headerValues.Range(func(key, value interface{}) bool {
-		cacheKeyList = append(cacheKeyList, key.(string))
-		return true
-	})
-
-	return len(cacheKeyList) != 0, cacheKeyList
+func (f *FindCacheKeys) BinarySearchHeaders3(target *models.TargetStruct) (bool, []string) {
+	return false, nil
 }
 
 // GetRespByDefHeader 随机 Header 参数和随机 Value 获取一个响应
