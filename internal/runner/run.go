@@ -1,7 +1,8 @@
-package logic
+package runner
 
 import (
 	"github.com/projectdiscovery/gologger"
+	"github.com/wealeson1/wcpvs/internal/logic"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques/cpdos"
 	"github.com/wealeson1/wcpvs/internal/models"
@@ -9,7 +10,7 @@ import (
 )
 
 func Run(target *models.TargetStruct) {
-	err := Checker.Check(target)
+	err := logic.Checker.Check(target)
 	if err != nil {
 		return
 	}
@@ -18,7 +19,7 @@ func Run(target *models.TargetStruct) {
 		return
 	}
 	gologger.Info().Msgf("The target %s has a caching mechanism; start identifying cache keys.", target.Request.URL)
-	err = CacheKeysFinder.Check(target)
+	err = logic.CacheKeysFinder.Check(target)
 	if err != nil {
 		return
 	}
@@ -32,7 +33,10 @@ func Run(target *models.TargetStruct) {
 		tecniques.HCPTechniques,
 		tecniques.ParameterCP,
 		tecniques.CCPTechniques,
-		cpdos.RDDTecniques,
+		cpdos.LRDTecniques,
+		cpdos.PncTecnique,
+		cpdos.HhcnTecnique,
+		cpdos.UPCTecnique,
 	}
 	var wg sync.WaitGroup
 	for _, scan := range scans {

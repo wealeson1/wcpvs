@@ -1,4 +1,4 @@
-package logic
+package runner
 
 import (
 	"github.com/projectdiscovery/gologger"
@@ -6,7 +6,6 @@ import (
 	"github.com/projectdiscovery/katana/pkg/output"
 	"github.com/projectdiscovery/katana/pkg/types"
 	"github.com/wealeson1/wcpvs/internal/models"
-	"github.com/wealeson1/wcpvs/internal/runner"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
 	"math"
@@ -20,18 +19,18 @@ func init() {
 
 func Crawl(url string, targets chan *models.TargetStruct) {
 	options := &types.Options{
-		MaxDepth:           runner.ScanOptions.MaxDepth, // Maximum depth to crawl
-		FieldScope:         "rdn",                       // Crawling Scope Field
-		BodyReadSize:       math.MaxInt,                 // Maximum response size to read
-		Timeout:            runner.ScanOptions.TimeOut,  // Timeout is the time to wait for request in seconds
-		Concurrency:        10,                          // Concurrency is the number of concurrent crawling goroutines
-		Parallelism:        10,                          // Parallelism is the number of urls processing goroutines
-		Delay:              0,                           // Delay is the delay between each crawl requests in seconds
-		RateLimit:          150,                         // Maximum requests to send per second
-		Strategy:           "depth-first",               // Visit strategy (depth-first, breadth-first)
-		Headless:           runner.ScanOptions.Headless,
-		UseInstalledChrome: runner.ScanOptions.SystemChrome,
-		Proxy:              runner.ScanOptions.ProxyURL,
+		MaxDepth:           ScanOptions.MaxDepth, // Maximum depth to crawl
+		FieldScope:         "rdn",                // Crawling Scope Field
+		BodyReadSize:       math.MaxInt,          // Maximum response size to read
+		Timeout:            ScanOptions.TimeOut,  // Timeout is the time to wait for request in seconds
+		Concurrency:        10,                   // Concurrency is the number of concurrent crawling goroutines
+		Parallelism:        10,                   // Parallelism is the number of urls processing goroutines
+		Delay:              0,                    // Delay is the delay between each crawl requests in seconds
+		RateLimit:          150,                  // Maximum requests to send per second
+		Strategy:           "depth-first",        // Visit strategy (depth-first, breadth-first)
+		Headless:           ScanOptions.Headless,
+		UseInstalledChrome: ScanOptions.SystemChrome,
+		Proxy:              ScanOptions.ProxyURL,
 		IgnoreQueryParams:  true,
 		OnResult: func(result output.Result) { // Callback function to execute for result
 			if result.HasResponse() {

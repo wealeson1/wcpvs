@@ -46,7 +46,7 @@ func (f *FindCacheKeys) Check(target *models.TargetStruct) error {
 	}
 
 	if ih, headers := f.BinarySearchHeaders(target); ih && len(headers) != 0 {
-		gologger.Info().Msgf("The target %s has a request header cache key: %v.", target.Request.URL, headers)
+		gologger.Info().Msgf("The target %s has a request header cache key(s): %v.", target.Request.URL, headers)
 		target.Cache.CKIsHeader = true
 		target.Cache.HeaderCacheKeys = headers
 	}
@@ -105,7 +105,7 @@ func (f *FindCacheKeys) FindCacheKeyByGet(target *models.TargetStruct) bool {
 			return false
 		}
 		tmpRespHeaders := &tmpResp.Header
-		if !utils.IsCacheMiss(target, tmpRespHeaders) {
+		if utils.IsCacheHit(target, tmpRespHeaders) {
 			return false
 		}
 		return true
@@ -207,10 +207,10 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct) (bool, 
 
 		var resp *http.Response
 		var err error
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			time.Sleep(500 * time.Millisecond)
 			resp, err = tryRequest(headers)
-			if err == nil && resp != nil && !utils.IsCacheMiss(target, &resp.Header) {
+			if err == nil && resp != nil && utils.IsCacheHit(target, &resp.Header) {
 				return
 			}
 		}
@@ -304,7 +304,7 @@ func (f *FindCacheKeys) FindCacheKeyByCookie(target *models.TargetStruct) (bool,
 				gologger.Error().Msg(err.Error())
 				return false, nil
 			}
-			if !utils.IsCacheMiss(target, &resp.Header) {
+			if utils.IsCacheHit(target, &resp.Header) {
 				return false, nil
 			}
 		}

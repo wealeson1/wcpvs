@@ -33,3 +33,16 @@ func RandInt64() int64 {
 	}
 	return randomInt.Int64()
 }
+
+func RandomNumber(min, max int) int {
+	// 生成一个 [min, max] 范围内的安全随机数
+	// 计算范围大小
+	rangeSize := max - min + 1
+	// 生成 [0, rangeSize) 范围内的随机数
+	randNum, err := rand.Int(rand.Reader, big.NewInt(int64(rangeSize)))
+	if err != nil {
+		panic(err)
+	}
+	// 将结果转换为 [min, max] 范围内的随机数
+	return int(randNum.Int64()) + min
+}

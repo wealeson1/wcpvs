@@ -27,7 +27,8 @@ func (p *PCPTechniques) Scan(target *models.TargetStruct) {
 		return
 	}
 	// 判断是否为anyGet
-	payloadMap := map[string]string{utils.RandomString(10): utils.RandomString(10)}
+	value := utils.RandomString(10)
+	payloadMap := map[string]string{utils.RandomString(10): value}
 	resp, err := GetResp(target, GET, payloadMap)
 	if err != nil {
 		return
@@ -91,5 +92,8 @@ func (p *PCPTechniques) Scan(target *models.TargetStruct) {
 	wg.Add(1)
 	recursionScan(target, models.Config.Parameters)
 	wg.Wait()
+}
+
+func (p *PCPTechniques) Scan2(target *models.TargetStruct) {
 
 }

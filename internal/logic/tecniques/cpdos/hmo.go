@@ -5,6 +5,7 @@ import (
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
+	"io"
 )
 
 type Hmo struct {
@@ -36,9 +37,17 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 			gologger.Error().Msgf(err.Error())
 			return
 		}
-		//长度相差大于10
-		//diff := math.Abs(float64(resp.ContentLength - target.Response.ContentLength))
-		// 有时候某些站点会有一些意外情况
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			gologger.Error().Msg("HMOTecniques.scan:" + err.Error())
+			return
+		}
+		//长度相差大于总体响应的十分之一，视为异常
+		diff := len(target.RespBody) - len(respBody)
+		if diff < 0 {
+			diff = -diff
+		}
+		//|| diff > (len(target.RespBody)/3)
 		if resp.StatusCode != target.Response.StatusCode {
 			tmpReq1, err := utils.CloneRequest(resp.Request)
 			if err != nil {
@@ -51,7 +60,7 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 					continue
 				}
 				if utils.IsCacheHit(target, &resp.Header) {
-					gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using HMO and %v.\n", target.Request.URL, payloadMap)
+					gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HMO and %v.", target.Request.URL, payloadMap)
 					return
 				}
 			}

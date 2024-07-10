@@ -8,20 +8,20 @@ import (
 	"strings"
 )
 
-var RDDTecniques *RDD
+var LRDTecniques *LRD
 
-type RDD struct {
+type LRD struct {
 }
 
-func NewRdd() *RDD {
-	return &RDD{}
+func NewRdd() *LRD {
+	return &LRD{}
 }
 
 func init() {
-	RDDTecniques = NewRdd()
+	LRDTecniques = NewRdd()
 }
 
-func (r *RDD) Scan(target *models.TargetStruct) {
+func (r *LRD) Scan(target *models.TargetStruct) {
 	primitiveStatusCode := target.Response.StatusCode
 	if primitiveStatusCode > 300 && primitiveStatusCode < 400 {
 		if !target.Cache.CKIsAnyGet {
@@ -31,7 +31,7 @@ func (r *RDD) Scan(target *models.TargetStruct) {
 				return
 			}
 			randomParam := utils.RandomString(5)
-			randomValue := utils.RandomString(10)
+			randomValue := utils.RandomString(5)
 			values := tmpReq.URL.Query()
 			values.Set(randomParam, randomValue)
 			tmpReq.URL.RawQuery = values.Encode()

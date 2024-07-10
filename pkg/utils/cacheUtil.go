@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"net/http"
 	"slices"
@@ -15,7 +14,10 @@ func IsCacheMiss(target *models.TargetStruct, headers *http.Header) bool {
 		return false
 	}
 
-	if CacheMissByAge(headers) || CacheMissByXCH(headers) || CacheMissByXI(headers) || CacheMissByOthers(target, headers) {
+	if CacheMissByAge(headers) {
+		return true
+	}
+	if CacheMissByXCH(headers) || CacheMissByXI(headers) || CacheMissByOthers(target, headers) {
 		return true
 	}
 	return false
@@ -25,7 +27,11 @@ func IsCacheHit(target *models.TargetStruct, headers *http.Header) bool {
 	if len(target.Cache.Indicators) == 0 {
 		return false
 	}
-	if IsCacheValidByAge(*headers) || IsCacheValidByXCacheHits(*headers) || IsCacheValidByXInfo(*headers) || IsCacheValidByOtherCustomHeaders(*headers) {
+	if IsCacheValidByAge(*headers) {
+		return true
+	}
+
+	if IsCacheValidByXCacheHits(*headers) || IsCacheValidByXInfo(*headers) || IsCacheValidByOtherCustomHeaders(*headers) {
 		return true
 	}
 	return false
@@ -77,6 +83,9 @@ func CacheMissByOthers(target *models.TargetStruct, headers *http.Header) bool {
 	customHeaderOfTarget := target.Cache.Indicators
 	for header, _ := range customHeaderOfTarget {
 		headerValues := strings.ToLower(headers.Get(header))
+		if strings.Contains(headerValues, "miss") && strings.Contains(headerValues, "hit") {
+			return false
+		}
 		if strings.Contains(headerValues, "miss") {
 			return true
 		} else if strings.Contains(headerValues, "hit") || strings.Contains(headerValues, "cached") {
@@ -92,7 +101,7 @@ func CacheMissByExpires(target *models.TargetStruct, headers *http.Header) bool 
 	return false
 }
 
-var CustomHeaders = []string{"cache-control", "pragma", "x-cache-lookup", "x-cache", "cf-cache-status", "x-drupal-cache", "x-varnish-cache", "akamai-cache-status", "server-timing", "x-iinfo", "x-nc", "x-hs-cf-cache-status", "x-proxy-cache", "x-cache-hits", "x-cache-status", "x-cache-info", "x-rack-cache", "cdn_cache_status", "x-akamai-cache", "x-akamai-cache-remote", "x-cache-remote", "X-Response-Cache", "age", "x-cache-webcdn", "expires", "date"}
+var CustomHeaders = []string{"cache-control", "pragma", "x-cache-lookup", "x-cache", "cf-cache-status", "x-drupal-cache", "x-varnish-cache", "akamai-cache-status", "server-timing", "x-iinfo", "x-nc", "x-hs-cf-cache-status", "x-proxy-cache", "x-cache-hits", "x-cache-status", "x-cache-info", "x-rack-cache", "cdn_cache_status", "x-akamai-cache", "x-akamai-cache-remote", "x-cache-remote", "X-Response-Cache", "age", "x-cache-webcdn", "expires", "date", "eo-cache-status"}
 
 // HasCustomHeaders 检查响应中是否存在 customHeaders 中的响应头
 // respHeaders 必须是两个请求的后一个响应的响应头
@@ -130,7 +139,7 @@ func IsCacheValidByExpires(headers http.Header) bool {
 
 	isCacheValid := dateTime.Before(expiresTime)
 	if isCacheValid {
-		gologger.Info().Msgf("Cache mechanism exists, judgment basis Expires:%s date:%s.", expires, date)
+		//gologger.Info().Msgf("Cache mechanism exists, judgment basis Expires:%s date:%s.", expires, date)
 	}
 	return isCacheValid
 }
@@ -144,7 +153,7 @@ func IsCacheValidByXInfo(headers http.Header) bool {
 	isCacheValid := strings.Contains(xInfo[22:23], "C") || strings.Contains(xInfo[22:23], "V")
 	// 根据 x-iinfo 的值来确定缓存是否有效
 	if isCacheValid {
-		gologger.Info().Msgf("Cache mechanism exists, judgment basis xInfo:%s.", xInfo)
+		//gologger.Info().Msgf("Cache mechanism exists, judgment basis xInfo:%s.", xInfo)
 	}
 	return isCacheValid
 }
@@ -160,7 +169,7 @@ func IsCacheValidByXCacheHits(headers http.Header) bool {
 	for _, x := range splitValues {
 		x = strings.TrimSpace(x)
 		if x != "0" {
-			gologger.Info().Msgf("Cache mechanism exists, judgment basis X-Cache-Hits:%s.", xCacheHits)
+			//gologger.Info().Msgf("Cache mechanism exists, judgment basis X-Cache-Hits:%s.", xCacheHits)
 			return true
 		}
 	}
@@ -177,10 +186,7 @@ func IsCacheValidByAge(headers http.Header) bool {
 	if err != nil {
 		return false
 	}
-	isCacheValid := ageValue >= 0
-	if isCacheValid {
-		gologger.Info().Msgf("judgment basis Age:%s.", age)
-	}
+	isCacheValid := ageValue > 0
 	// 根据需求定义 Age 是否有效的条件
 	return isCacheValid
 }
@@ -189,8 +195,10 @@ func IsCacheValidByAge(headers http.Header) bool {
 func IsCacheValidByOtherCustomHeaders(headers http.Header) bool {
 	for _, header := range CustomHeaders {
 		headerValues := strings.ToLower(headers.Get(header))
+		if strings.Contains(headerValues, "miss") && strings.Contains(headerValues, "hit") {
+			return false
+		}
 		if strings.Contains(headerValues, "hit") || strings.Contains(headerValues, "cached") {
-			gologger.Info().Msgf("Cache mechanism exists, judgment basis %s:%s.", header, headers.Get(header))
 			return true
 		}
 	}

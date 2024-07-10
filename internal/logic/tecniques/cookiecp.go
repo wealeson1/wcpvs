@@ -35,7 +35,7 @@ func (c *CookieCP) Scan(target *models.TargetStruct) {
 			gologger.Error().Msg("CCPTechniques.Scan " + err.Error())
 			continue
 		}
-		if RespContains(resp, randomValue) {
+		if RespContains(resp, "<"+randomValue) {
 			gologger.Info().Msgf("The target %s has a cookie that is exposed in the response. Cookie: %s:%s. This may indicate a potential cache poisoning vulnerability.", target.Request.URL, cookie.Name, randomValue)
 		}
 	}

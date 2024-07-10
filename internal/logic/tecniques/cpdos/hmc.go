@@ -20,8 +20,8 @@ func init() {
 
 func NewHmc() *Hmc {
 	return &Hmc{
-		headers: []string{"X-Metachar-Header"},
-		values:  []string{"\\n", "\\r", "\\a", "\\0", "\\b", "\\e", "\\v", "\\f", "\\u0000"},
+		headers: []string{"X-Metachar-Header", "\n"},
+		values:  []string{"\n", "\r", "\a", "\\0", "\b", "\\e", "\v", "\f", "\u0000"},
 	}
 }
 
@@ -50,7 +50,8 @@ func (h *Hmc) Scan(target *models.TargetStruct) {
 						continue
 					}
 					if utils.IsCacheHit(target, &resp.Header) {
-						gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using Hmc. %s:%s.\n", target.Request.URL, header, value)
+						gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using Hmc. %s:%s.", target.Request.URL, header, value)
+						return
 					}
 					utils.CloseReader(resp.Body)
 				}

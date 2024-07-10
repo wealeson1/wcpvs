@@ -5,6 +5,9 @@ import (
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -27,7 +30,7 @@ func NewHHO() *HHO {
 
 func (h *HHO) Scan(target *models.TargetStruct) {
 	headerSize := 8192
-	mixSize := 20480
+	mixSize := 40960
 
 	for headerSize <= mixSize {
 		if target.Cache.CKIsAnyGet {
@@ -37,8 +40,14 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 				gologger.Error().Msg(err.Error())
 				return
 			}
+			respBodyBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				gologger.Error().Msg(err.Error())
+				return
+			}
+
 			utils.CloseReader(resp.Body)
-			if resp.StatusCode != target.Response.StatusCode {
+			if (resp.StatusCode != target.Response.StatusCode) || (resp.StatusCode == http.StatusBadRequest && strings.Contains(string(respBodyBytes), "Too Large")) {
 				for range 3 {
 					time.Sleep(400 * time.Millisecond)
 					tmpReq, err := utils.CloneRequest(resp.Request)
@@ -52,7 +61,7 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 						return
 					}
 					if utils.IsCacheHit(target, &resp.Header) {
-						gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.\n", target.Request.URL, headerSize)
+						gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.", target.Request.URL, headerSize)
 						return
 					}
 					utils.CloseReader(resp.Body)
@@ -77,7 +86,7 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 					resp, err := utils.CommonClient.Do(tmpReq)
 					if err == nil {
 						if utils.IsCacheHit(target, &resp.Header) {
-							gologger.Info().Msgf("\nThe target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.\n", target.Request.URL, headerSize)
+							gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.", target.Request.URL, headerSize)
 							return
 						}
 					}

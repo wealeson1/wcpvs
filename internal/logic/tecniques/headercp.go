@@ -66,16 +66,11 @@ func (h *HeaderCP) Scan(target *models.TargetStruct) {
 			}
 			utils.CloseReader(resp.Body)
 			for k, v := range payloadMap {
-				if strings.Contains(string(respBodyStr), v) {
+				if strings.Contains(string(respBodyStr), "<"+v) {
 					gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s: %s.", target.Request.URL, k, v)
 				}
-			}
-			for rh, _ := range respHeaders {
-				respHeaderValue := respHeaders.Get(rh)
-				for k, v := range payloadMap {
-					if strings.Contains(respHeaderValue, v) {
-						gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response header, potentially indicating a cache poisoning vulnerability. %s: %s.", target.Request.URL, k, v)
-					}
+				if respHeaders.Get(v) != "" {
+					gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response header, potentially indicating a cache poisoning vulnerability. %s: %s.", target.Request.URL, k, v)
 				}
 			}
 			return

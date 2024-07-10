@@ -24,6 +24,7 @@ func (c *CacheChecker) Check(target *models.TargetStruct) error {
 	isCache, orderCustomHeaders := c.IsCacheAvailable(target)
 	if !isCache {
 		target.Cache.NoCache = true
+		return nil
 	}
 	target.Cache.OrderCustomHeaders = orderCustomHeaders
 	resp := target.Response
@@ -42,11 +43,11 @@ func (c *CacheChecker) Check(target *models.TargetStruct) error {
 			if resp == nil {
 				return fmt.Errorf("second response is nil")
 			}
-			if !utils.IsCacheMiss(target, &resp.Header) {
+			utils.CloseReader(resp.Body)
+			if utils.IsCacheHit(target, &resp.Header) {
 				target.Cache.NoCache = false
 				return nil
 			}
-			utils.CloseReader(resp.Body)
 		}
 		gologger.Info().Msgf("The target %s has a caching mechanism but consistently results in cache misses.", target.Request.URL)
 		target.Cache.NoCache = true
