@@ -243,10 +243,6 @@ func (f *FindCacheKeys) BinarySearchHeaders2(target *models.TargetStruct) (bool,
 	return false, cacheKeyList
 }
 
-func (f *FindCacheKeys) BinarySearchHeaders3(target *models.TargetStruct) (bool, []string) {
-	return false, nil
-}
-
 // GetRespByDefHeader 随机 Header 参数和随机 Value 获取一个响应
 func (f *FindCacheKeys) GetRespByDefHeader(req *http.Request, hvMap map[string]string, primitiveRespStatusCOde int) (*http.Response, error) {
 	if len(hvMap) == 0 {
