@@ -19,8 +19,116 @@ const (
 	COOKIE int = 2
 )
 
-// GetResp 根据 target 获取一个回源响应，请求中可以插入用户想插入的任何非缓存键的值
+// GetRespNoPayload 根据 target 获取一个回源响应，请求中可以插入用户想插入的任何非缓存键的值
 // todo 重复代码拆分
+func GetRespNoPayload(target *models.TargetStruct, position int, pvMap map[string]string) (*http.Response, error) {
+	if len(pvMap) == 0 {
+		return nil, errors.New("param or value is empty")
+	}
+
+	tmpReq, err := utils.CloneRequest(target.Request)
+	if err != nil {
+		return nil, err
+	}
+	switch position {
+	case GET:
+		values := url.Values{}
+		for k, v := range pvMap {
+			if k == "" {
+				continue
+			}
+			values.Set(k, v)
+		}
+		tmpReq.URL.RawQuery = values.Encode()
+		if target.Cache.CKIsHeader {
+			randomValue := utils.RandomString(5)
+			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
+		} else if target.Cache.CKisCookie {
+			randomValue := utils.RandomString(5)
+			for _, v := range tmpReq.Cookies() {
+				if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
+					v.Value = randomValue
+				}
+			}
+		} else {
+			err := fmt.Errorf("the target %s has no cache key", target.Request.URL)
+			return nil, err
+		}
+	case HEADER:
+		for k, v := range pvMap {
+			if target.Cache.CKIsHeader && slices.Contains(target.Cache.HeaderCacheKeys, k) {
+				gologger.Warning().Msgf("Header %s is cache key", k)
+				continue
+			}
+			tmpReq.Header.Set(k, v)
+		}
+		if target.Cache.CKIsAnyGet {
+			randomParam := utils.RandomString(5)
+			randomValue := utils.RandomString(5)
+			values := tmpReq.URL.Query()
+			values.Add(randomParam, randomValue)
+			tmpReq.URL.RawQuery = values.Encode()
+		} else if target.Cache.CKIsGet {
+			randomParam := utils.RandomString(5)
+			query := tmpReq.URL.Query()
+			for _, param := range target.Cache.GetCacheKeys {
+				query.Add(param, randomParam)
+			}
+			tmpReq.URL.RawQuery = query.Encode()
+		} else if target.Cache.CKIsHeader {
+			randomValue := utils.RandomString(5)
+			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
+		} else if target.Cache.CKisCookie {
+			randomValue := utils.RandomString(5)
+			for _, v := range tmpReq.Cookies() {
+				if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
+					v.Value = randomValue
+				}
+			}
+		} else {
+			err := fmt.Errorf("the target %s has no cache key", target.Request.URL)
+			return nil, err
+		}
+	case COOKIE:
+		for k, v := range pvMap {
+			if target.Cache.CKisCookie && slices.Contains(target.Cache.CookieCacheKeys, k) {
+				gologger.Warning().Msgf("Cookie %s is cache key", k)
+				continue
+			}
+			tmpReq.AddCookie(&http.Cookie{Name: k, Value: v})
+			if target.Cache.CKIsAnyGet {
+				randomParam := utils.RandomString(5)
+				randomValue := utils.RandomString(5)
+				values := tmpReq.URL.Query()
+				values.Set(randomParam, randomValue)
+				tmpReq.URL.RawQuery = values.Encode()
+			} else if target.Cache.CKIsGet {
+				randomParam := utils.RandomString(5)
+				query := tmpReq.URL.Query()
+				for _, param := range target.Cache.GetCacheKeys {
+					query.Add(param, randomParam)
+				}
+				tmpReq.URL.RawQuery = query.Encode()
+			} else if target.Cache.CKIsHeader {
+				randomValue := utils.RandomString(5)
+				tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
+			} else if target.Cache.CKisCookie {
+				randomValue := utils.RandomString(5)
+				for _, v := range tmpReq.Cookies() {
+					if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
+						v.Value = randomValue
+					}
+				}
+			} else {
+				err := fmt.Errorf("the target %s has no cache key", target.Request.URL)
+				return nil, err
+			}
+		}
+	}
+	resp, err := utils.CommonClient.Do(tmpReq)
+	return resp, err
+}
+
 func GetResp(target *models.TargetStruct, position int, pvMap map[string]string) (*http.Response, error) {
 	if len(pvMap) == 0 {
 		return nil, errors.New("param or value is empty")

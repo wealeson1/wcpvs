@@ -32,7 +32,7 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 		for _, header := range h.headers {
 			payloadMap[header] = value
 		}
-		resp, err := tecniques.GetResp(target, tecniques.HEADER, payloadMap)
+		resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, payloadMap)
 		if err != nil {
 			gologger.Error().Msgf(err.Error())
 			return

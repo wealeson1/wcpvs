@@ -20,15 +20,15 @@ func init() {
 
 func NewHmc() *Hmc {
 	return &Hmc{
-		headers: []string{"X-Metachar-Header", "\n"},
-		values:  []string{"\n", "\r", "\a", "\\0", "\b", "\\e", "\v", "\f", "\u0000"},
+		headers: []string{"X-Metachar-Header", "\\n"},
+		values:  []string{"\\n", "\\r", "\\a", "\\0", "\\b", "\\e", "\\v", "\\f", "\\u0000"},
 	}
 }
 
 func (h *Hmc) Scan(target *models.TargetStruct) {
 	for _, header := range h.headers {
 		for _, value := range h.values {
-			resp, err := tecniques.GetResp(target, tecniques.HEADER, map[string]string{header: value})
+			resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, map[string]string{header: value})
 			if err != nil {
 				continue
 			}

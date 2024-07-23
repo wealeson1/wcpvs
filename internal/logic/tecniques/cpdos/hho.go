@@ -35,7 +35,7 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 	for headerSize <= mixSize {
 		if target.Cache.CKIsAnyGet {
 			randomHeader := utils.RandomString(5)
-			resp, err := tecniques.GetResp(target, tecniques.HEADER, map[string]string{randomHeader: utils.RandomString(headerSize)})
+			resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, map[string]string{randomHeader: utils.RandomString(headerSize)})
 			if err != nil {
 				gologger.Error().Msg(err.Error())
 				return
@@ -71,7 +71,7 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 		}
 		if !target.Cache.CKIsAnyGet && target.Cache.CKIsHeader {
 			randomParam := utils.RandomString(5)
-			resp, err := tecniques.GetResp(target, tecniques.GET, map[string]string{randomParam: utils.RandomString(headerSize)})
+			resp, err := tecniques.GetRespNoPayload(target, tecniques.GET, map[string]string{randomParam: utils.RandomString(headerSize)})
 			if err != nil {
 				gologger.Error().Msg(err.Error())
 				return
