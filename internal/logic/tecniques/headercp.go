@@ -196,8 +196,10 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 
 				if tmpResp.StatusCode != target.Response.StatusCode && utils.IsCacheHit(target, &tmpResp.Header) {
 					gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
+					return
 				}
 			}
+			return
 		}
 		wg.Add(2)
 		go h.findVulnerability(target, leftPart, wg)
