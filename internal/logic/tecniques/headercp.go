@@ -195,7 +195,7 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 				}
 
 				if tmpResp.StatusCode != target.Response.StatusCode && utils.IsCacheHit(target, &tmpResp.Header) {
-					gologger.Info().Msgf("Target %s has cahce-poising vulnerability,%s", target.Request.URL, pvMap)
+					gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
 				}
 			}
 		}
@@ -208,14 +208,14 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 		// 判断Body中是否存在某些字符串
 		for header, value := range pvMap {
 			if strings.Contains(string(respBody), "<"+value) {
-				gologger.Info().Msgf("存在缓存投毒漏洞，header's value will be show in respBody,header name is %s:%s", header, utils.RandomString(5))
+				gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s: %s.", target.Request.URL, header, utils.RandomString(5))
 				break
 			}
 		}
 
 		for header, value := range pvMap {
 			if resp.Header.Get(value) != "" {
-				gologger.Info().Msgf("存在缓存投毒漏洞，header's value will be show in respBody,header name is %s:%s", header, utils.RandomString(5))
+				gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s: %s.", target.Request.URL, header, utils.RandomString(5))
 				break
 			}
 		}

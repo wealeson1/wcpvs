@@ -5,6 +5,7 @@ import (
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -22,81 +23,83 @@ func init() {
 	ParameterCP = NewParameterCP()
 }
 
-func (p *PCPTechniques) Scan2(target *models.TargetStruct) {
-	//if target.Cache.NoCache || target.Cache.CKIsAnyGet {
-	if target.Cache.NoCache {
-		return
-	}
-	// 判断是否为anyGet
-	value := utils.RandomString(10)
-	payloadMap := map[string]string{utils.RandomString(10): value}
-	resp, err := GetResp(target, GET, payloadMap)
-	if err != nil {
-		return
-	}
-	respBody, err := io.ReadAll(resp.Body)
-	respHeader := resp.Header
-	if err != nil {
-		gologger.Error().Msg(err.Error())
-		return
-	}
-	for k, v := range payloadMap {
-		if RespContains2(string(respBody), k, respHeader) || RespContains2(string(respBody), v, respHeader) {
-			gologger.Info().Msgf("The target %s has any GET parameter reflected in the response, %s=%s, which may indicate a cache poisoning vulnerability.", target.Request.URL, k, v)
-			target.Cache.AnyGetParamsInResp = true
-			return
-		}
-	}
+//func (p *PCPTechniques) Scan2(target *models.TargetStruct) {
+//	//if target.Cache.NoCache || target.Cache.CKIsAnyGet {
+//	if target.Cache.NoCache {
+//		return
+//	}
+//	// 判断是否为anyGet
+//	value := utils.RandomString(10)
+//	payloadMap := map[string]string{utils.RandomString(10): value}
+//	resp, err := GetResp(target, GET, payloadMap)
+//	if err != nil {
+//		return
+//	}
+//	respBody, err := io.ReadAll(resp.Body)
+//	respHeader := resp.Header
+//	if err != nil {
+//		gologger.Error().Msg(err.Error())
+//		return
+//	}
+//	for k, v := range payloadMap {
+//		if RespContains2(string(respBody), k, respHeader) || RespContains2(string(respBody), v, respHeader) {
+//			gologger.Info().Msgf("The target %s has any GET parameter reflected in the response, %s=%s, which may indicate a cache poisoning vulnerability.", target.Request.URL, k, v)
+//			target.Cache.AnyGetParamsInResp = true
+//			return
+//		}
+//	}
+//
+//	var wg sync.WaitGroup
+//	var recursionScan func(target *models.TargetStruct, parameters []string)
+//	recursionScan = func(target *models.TargetStruct, parameters []string) {
+//		defer wg.Done()
+//		// 检查参数数组是否为空
+//		if len(parameters) == 0 {
+//			return
+//		}
+//		payloadMap := make(map[string]string)
+//		for _, parameter := range parameters {
+//			payloadMap[parameter] = utils.RandomString(5)
+//		}
+//
+//		resp2, err := GetResp(target, GET, payloadMap)
+//		if err != nil {
+//			return
+//		}
+//		respBody, err := io.ReadAll(resp2.Body)
+//		if err != nil {
+//			gologger.Error().Msg(err.Error())
+//			return
+//		}
+//		utils.CloseReader(resp2.Body)
+//		respHeader := resp2.Header
+//		if resp2.StatusCode == target.Response.StatusCode {
+//			for h, v := range payloadMap {
+//				if RespContains2(string(respBody), v, respHeader) {
+//					gologger.Info().Msgf("The target %s exhibits GET parameters reflected in the response: %s=%s, suggesting a potential cache poisoning vulnerability.", target.Request.URL, h, v)
+//					target.Cache.InRespOfGetParams = append(target.Cache.InRespOfGetParams, h)
+//				}
+//			}
+//			return
+//		}
+//		mid := len(parameters) / 2
+//		if mid > 1 {
+//			leftPart := parameters[:mid]
+//			rightPart := parameters[mid:]
+//			wg.Add(2)
+//			go recursionScan(target, leftPart)
+//			go recursionScan(target, rightPart)
+//		}
+//	}
+//	wg.Add(1)
+//	recursionScan(target, models.Config.Parameters)
+//	wg.Wait()
+//}
 
-	var wg sync.WaitGroup
-	var recursionScan func(target *models.TargetStruct, parameters []string)
-	recursionScan = func(target *models.TargetStruct, parameters []string) {
-		defer wg.Done()
-		// 检查参数数组是否为空
-		if len(parameters) == 0 {
-			return
-		}
-		payloadMap := make(map[string]string)
-		for _, parameter := range parameters {
-			payloadMap[parameter] = utils.RandomString(5)
-		}
-
-		resp2, err := GetResp(target, GET, payloadMap)
-		if err != nil {
-			return
-		}
-		respBody, err := io.ReadAll(resp2.Body)
-		if err != nil {
-			gologger.Error().Msg(err.Error())
-			return
-		}
-		utils.CloseReader(resp2.Body)
-		respHeader := resp2.Header
-		if resp2.StatusCode == target.Response.StatusCode {
-			for h, v := range payloadMap {
-				if RespContains2(string(respBody), v, respHeader) {
-					gologger.Info().Msgf("The target %s exhibits GET parameters reflected in the response: %s=%s, suggesting a potential cache poisoning vulnerability.", target.Request.URL, h, v)
-					target.Cache.InRespOfGetParams = append(target.Cache.InRespOfGetParams, h)
-				}
-			}
-			return
-		}
-		mid := len(parameters) / 2
-		if mid > 1 {
-			leftPart := parameters[:mid]
-			rightPart := parameters[mid:]
-			wg.Add(2)
-			go recursionScan(target, leftPart)
-			go recursionScan(target, rightPart)
-		}
-	}
-	wg.Add(1)
-	recursionScan(target, models.Config.Parameters)
-	wg.Wait()
-}
-
+// Scan
+// 要不要检查fatget呢？？？？
 func (p *PCPTechniques) Scan(target *models.TargetStruct) {
-	if target.Cache.NoCache && target.Cache.CKIsAnyGet {
+	if target.Cache.NoCache || target.Cache.CKIsAnyGet {
 		return
 	}
 	isAntGet, err := p.findVulnerabilityByAnyGet(target)
@@ -107,9 +110,20 @@ func (p *PCPTechniques) Scan(target *models.TargetStruct) {
 	if isAntGet {
 		return
 	}
+	paramsNoGetCacheKeys := make([]string, 1)
+	if target.Cache.CKIsGet {
+		if len(target.Cache.GetCacheKeys) == 0 {
+			return
+		}
+		for _, param := range models.Config.Parameters {
+			if !slices.Contains(target.Cache.GetCacheKeys, param) {
+				paramsNoGetCacheKeys = append(paramsNoGetCacheKeys, param)
+			}
+		}
+	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go p.findVulnerability(target, models.Config.Parameters, &wg)
+	go p.findVulnerability(target, paramsNoGetCacheKeys, &wg)
 }
 
 func (p *PCPTechniques) findVulnerabilityByAnyGet(target *models.TargetStruct) (bool, error) {

@@ -40,7 +40,6 @@ func GetResp(target *models.TargetStruct, position int, pvMap map[string]string)
 			values.Set(k, "<"+v+"\">"+"%0d%0a"+v+":"+v)
 		}
 		tmpReq.URL.RawQuery = values.Encode()
-
 		if target.Cache.CKIsHeader {
 			randomValue := utils.RandomString(5)
 			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
@@ -67,8 +66,15 @@ func GetResp(target *models.TargetStruct, position int, pvMap map[string]string)
 			randomParam := utils.RandomString(5)
 			randomValue := utils.RandomString(5)
 			values := tmpReq.URL.Query()
-			values.Set(randomParam, randomValue)
+			values.Add(randomParam, randomValue)
 			tmpReq.URL.RawQuery = values.Encode()
+		} else if target.Cache.CKIsGet {
+			randomParam := utils.RandomString(5)
+			query := tmpReq.URL.Query()
+			for _, param := range target.Cache.GetCacheKeys {
+				query.Add(param, randomParam)
+			}
+			tmpReq.URL.RawQuery = query.Encode()
 		} else if target.Cache.CKIsHeader {
 			randomValue := utils.RandomString(5)
 			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
@@ -96,6 +102,13 @@ func GetResp(target *models.TargetStruct, position int, pvMap map[string]string)
 				values := tmpReq.URL.Query()
 				values.Set(randomParam, randomValue)
 				tmpReq.URL.RawQuery = values.Encode()
+			} else if target.Cache.CKIsGet {
+				randomParam := utils.RandomString(5)
+				query := tmpReq.URL.Query()
+				for _, param := range target.Cache.GetCacheKeys {
+					query.Add(param, randomParam)
+				}
+				tmpReq.URL.RawQuery = query.Encode()
 			} else if target.Cache.CKIsHeader {
 				randomValue := utils.RandomString(5)
 				tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
@@ -128,6 +141,16 @@ func GetSourceRequestWithCacheKey(target *models.TargetStruct) (req *http.Reques
 		randomValue := utils.RandomString(5)
 		values := tmpReq.URL.Query()
 		values.Set(randomParam, randomValue)
+		tmpReq.URL.RawQuery = values.Encode()
+		return tmpReq, nil
+	}
+
+	if target.Cache.CKIsGet {
+		randomValue := utils.RandomString(5)
+		values := tmpReq.URL.Query()
+		for _, param := range target.Cache.GetCacheKeys {
+			values.Add(param, randomValue)
+		}
 		tmpReq.URL.RawQuery = values.Encode()
 		return tmpReq, nil
 	}

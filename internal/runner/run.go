@@ -27,8 +27,8 @@ func Run(target *models.TargetStruct) {
 		gologger.Info().Msgf("The target %s does not have any cache keys.", target.Request.URL)
 		return
 	}
-	scans := []Scan{cpdos.HHOTecnique,
-		cpdos.HMCTecniques,
+	scans := []Scan{
+		cpdos.HHOTecnique,
 		cpdos.HMOTecniques,
 		tecniques.HCPTechniques,
 		tecniques.ParameterCP,
@@ -37,7 +37,8 @@ func Run(target *models.TargetStruct) {
 		cpdos.PncTecnique,
 		cpdos.HhcnTecnique,
 		cpdos.UPCTecnique,
-	}
+		cpdos.HMCTecniques}
+
 	var wg sync.WaitGroup
 	for _, scan := range scans {
 		wg.Add(1)

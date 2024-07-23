@@ -10,6 +10,7 @@ type CacheStruct struct {
 	TimeIndicator      bool
 	CBName             string
 	CKIsAnyGet         bool
+	CKIsGet            bool
 	CKIsHeader         bool
 	CkIsCookie         bool
 	CKName             string
@@ -18,6 +19,7 @@ type CacheStruct struct {
 	OrderCustomHeaders map[int]string
 	HeaderCacheKeys    []string
 	CookieCacheKeys    []string
+	GetCacheKeys       []string
 	AnyGetParamsInResp bool
 	InRespOfGetParams  []string
 }

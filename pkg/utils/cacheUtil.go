@@ -27,8 +27,26 @@ func IsCacheHit(target *models.TargetStruct, headers *http.Header) bool {
 	if len(target.Cache.Indicators) == 0 {
 		return false
 	}
-	if IsCacheValidByAge(*headers) {
-		return true
+	//if IsCacheValidByAge(*headers) {
+	//	return true
+	//}
+	// 优化华为云命中缓存策略
+	if headers.Get("age") != "" {
+		ageValue, err := strconv.Atoi(headers.Get("age"))
+		if err != nil {
+			return false
+		}
+		primitiveAge := target.Response.Header.Get("age")
+		if primitiveAge != "" {
+			primitiveAgeValue, err := strconv.Atoi(primitiveAge)
+			if err != nil {
+				return false
+			}
+			if primitiveAgeValue > 1 && (ageValue == 0 || ageValue == 1) {
+				return false
+			}
+			return true
+		}
 	}
 
 	if IsCacheValidByXCacheHits(*headers) || IsCacheValidByXInfo(*headers) || IsCacheValidByOtherCustomHeaders(*headers) {
