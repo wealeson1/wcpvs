@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 )
 
 type FindCacheKeys struct {
@@ -83,7 +82,6 @@ func (f *FindCacheKeys) Check(target *models.TargetStruct) error {
 	if target.Cache.CKIsAnyGet || target.Cache.CKIsHeader || target.Cache.CKisCookie || target.Cache.CKIsGet {
 		target.Cache.NoCache = false
 	}
-
 	return nil
 }
 
@@ -102,7 +100,6 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) bool {
 	for range 3 {
 		randomParamName := utils.RandomString(5)
 		randomParamValue := utils.RandomString(5)
-		time.Sleep(500 * time.Millisecond)
 		tmpResp, err := f.GetRespByDefGetParams(tmpRequest, randomParamName, randomParamValue)
 		if err != nil {
 			gologger.Error().Msg("FindCacheKeyByGet:" + err.Error())
@@ -110,10 +107,9 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) bool {
 		}
 		utils.CloseReader(tmpResp.Body)
 		tmpRespHeaders := &tmpResp.Header
-		if utils.IsCacheHit(target, tmpRespHeaders) {
-			return false
+		if utils.IsCacheMiss(target, tmpRespHeaders) {
+			return true
 		}
-		return true
 	}
 	return false
 }
