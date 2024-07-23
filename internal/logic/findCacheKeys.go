@@ -79,8 +79,8 @@ func (f *FindCacheKeys) Check(target *models.TargetStruct) error {
 		target.Cache.CookieCacheKeys = cookies
 	}
 
-	if target.Cache.CKIsAnyGet || target.Cache.CKIsHeader || target.Cache.CKisCookie || target.Cache.CKIsGet {
-		target.Cache.NoCache = false
+	if !target.Cache.CKIsAnyGet && !target.Cache.CKIsHeader && !target.Cache.CKisCookie && !target.Cache.CKIsGet {
+		target.Cache.NoCache = true
 	}
 	return nil
 }

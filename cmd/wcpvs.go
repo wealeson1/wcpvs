@@ -52,9 +52,7 @@ func main() {
 				Request:  primitiveResp.Request,
 				Response: primitiveResp,
 				RespBody: respBody,
-				Cache: &models.CacheStruct{
-					NoCache: true,
-				},
+				Cache:    &models.CacheStruct{},
 			}
 			TargetsChannel <- target
 		} else {
