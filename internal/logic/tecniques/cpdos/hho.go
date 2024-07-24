@@ -33,7 +33,7 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 	mixSize := 40960
 
 	for headerSize <= mixSize {
-		if target.Cache.CKIsAnyGet {
+		if !target.Cache.NoCache {
 			randomHeader := utils.RandomString(5)
 			resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, map[string]string{randomHeader: utils.RandomString(headerSize)})
 			if err != nil {
@@ -69,30 +69,30 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 				return
 			}
 		}
-		if !target.Cache.CKIsAnyGet && target.Cache.CKIsHeader {
-			randomParam := utils.RandomString(5)
-			resp, err := tecniques.GetRespNoPayload(target, tecniques.GET, map[string]string{randomParam: utils.RandomString(headerSize)})
-			if err != nil {
-				gologger.Error().Msg(err.Error())
-				return
-			}
-			if resp.StatusCode != target.Response.StatusCode {
-				for range 3 {
-					tmpReq, err := utils.CloneRequest(resp.Request)
-					if err != nil {
-						gologger.Error().Msg(err.Error())
-						return
-					}
-					resp, err := utils.CommonClient.Do(tmpReq)
-					if err == nil {
-						if utils.IsCacheHit(target, &resp.Header) {
-							gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.", target.Request.URL, headerSize)
-							return
-						}
-					}
-				}
-			}
-		}
+		//if !target.Cache.CKIsAnyGet && target.Cache.CKIsHeader {
+		//	randomParam := utils.RandomString(5)
+		//	resp, err := tecniques.GetRespNoPayload(target, tecniques.GET, map[string]string{randomParam: utils.RandomString(headerSize)})
+		//	if err != nil {
+		//		gologger.Error().Msg(err.Error())
+		//		return
+		//	}
+		//	if resp.StatusCode != target.Response.StatusCode {
+		//		for range 3 {
+		//			tmpReq, err := utils.CloneRequest(resp.Request)
+		//			if err != nil {
+		//				gologger.Error().Msg(err.Error())
+		//				return
+		//			}
+		//			resp, err := utils.CommonClient.Do(tmpReq)
+		//			if err == nil {
+		//				if utils.IsCacheHit(target, &resp.Header) {
+		//					gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.", target.Request.URL, headerSize)
+		//					return
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 		headerSize = headerSize + 1024
 	}
 

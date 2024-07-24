@@ -50,6 +50,13 @@ func GetRespNoPayload(target *models.TargetStruct, position int, pvMap map[strin
 					v.Value = randomValue
 				}
 			}
+		} else if target.Cache.CKIsGet {
+			randomParam := utils.RandomString(5)
+			query := tmpReq.URL.Query()
+			for _, param := range target.Cache.GetCacheKeys {
+				query.Add(param, randomParam)
+			}
+			tmpReq.URL.RawQuery = query.Encode()
 		} else {
 			err := fmt.Errorf("the target %s has no cache key", target.Request.URL)
 			return nil, err
@@ -158,6 +165,13 @@ func GetResp(target *models.TargetStruct, position int, pvMap map[string]string)
 					v.Value = randomValue
 				}
 			}
+		} else if target.Cache.CKIsGet {
+			randomParam := utils.RandomString(5)
+			query := tmpReq.URL.Query()
+			for _, param := range target.Cache.GetCacheKeys {
+				query.Add(param, randomParam)
+			}
+			tmpReq.URL.RawQuery = query.Encode()
 		} else {
 			err := fmt.Errorf("the target %s has no cache key", target.Request.URL)
 			return nil, err
