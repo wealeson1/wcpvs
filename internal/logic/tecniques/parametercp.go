@@ -183,6 +183,7 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 						if err != nil {
 							return
 						}
+						utils.CloseReader(shouldIsMissResp.Body)
 						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) {
 							gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
 							return
@@ -199,6 +200,7 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 						if err != nil {
 							return
 						}
+						utils.CloseReader(shouldIsHitResp.Body)
 						if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
 							gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
 							return

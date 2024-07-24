@@ -226,6 +226,7 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct, params 
 				if err != nil {
 					continue
 				}
+				utils.CloseReader(shouldIsHitResp.Body)
 				if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
 					target.Cache.CKIsHeader = true
 					target.Cache.HeaderCacheKeys = append(target.Cache.HeaderCacheKeys, params[0])
@@ -383,6 +384,7 @@ func (f *FindCacheKeys) BinarySearchGetCacheKey(target *models.TargetStruct, par
 				if err != nil {
 					continue
 				}
+				utils.CloseReader(shouldIsHitResp.Body)
 				if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
 					target.Cache.CKIsGet = true
 					target.Cache.GetCacheKeys = append(target.Cache.GetCacheKeys, params[0])

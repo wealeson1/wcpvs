@@ -94,7 +94,7 @@ func (u *UPC) scanCommonHttpPort(target *models.TargetStruct) {
 					}
 					utils.CloseReader(resp.Body)
 					if utils.IsCacheHit(target, &resp.Header) {
-						gologger.Info().Msgf("Target %s has cpdos vulnerability and tecnique is UPC %s:%d", target.Request.URL, tmpReq.Host)
+						gologger.Info().Msgf("Target %s has cpdos vulnerability and tecnique is UPC %s", target.Request.URL, tmpReq.Host)
 						return
 					}
 				}
