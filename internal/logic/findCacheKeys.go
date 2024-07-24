@@ -218,8 +218,20 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct, params 
 	}
 	if len(params) == 1 {
 		if utils.IsCacheMiss(target, &tmpResp.Header) {
-			target.Cache.CKIsHeader = true
-			target.Cache.HeaderCacheKeys = append(target.Cache.HeaderCacheKeys, params[0])
+			for range 3 {
+				shouldIsHitReq, err := utils.CloneRequest(tmpResp.Request)
+				if err != nil {
+					continue
+				}
+				shouldIsHitResp, err := utils.CommonClient.Do(shouldIsHitReq)
+				if err != nil {
+					continue
+				}
+				if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
+					target.Cache.CKIsHeader = true
+					target.Cache.HeaderCacheKeys = append(target.Cache.HeaderCacheKeys, params[0])
+				}
+			}
 		}
 		return
 	}
@@ -362,8 +374,20 @@ func (f *FindCacheKeys) BinarySearchGetCacheKey(target *models.TargetStruct, par
 	}
 	if len(params) == 1 {
 		if utils.IsCacheMiss(target, &tmpResp.Header) {
-			target.Cache.CKIsGet = true
-			target.Cache.GetCacheKeys = append(target.Cache.GetCacheKeys, params[0])
+			for range 3 {
+				shouldIsHitReq, err := utils.CloneRequest(tmpResp.Request)
+				if err != nil {
+					continue
+				}
+				shouldIsHitResp, err := utils.CommonClient.Do(shouldIsHitReq)
+				if err != nil {
+					continue
+				}
+				if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
+					target.Cache.CKIsGet = true
+					target.Cache.HeaderCacheKeys = append(target.Cache.GetCacheKeys, params[0])
+				}
+			}
 		}
 		return
 	}

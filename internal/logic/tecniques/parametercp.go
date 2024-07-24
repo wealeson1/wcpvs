@@ -162,24 +162,24 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 		gologger.Error().Msg(err.Error())
 		return
 	}
+
 	if resp.StatusCode != target.Response.StatusCode {
 		mid := len(params) / 2
 		leftPart := params[:mid]
 		rightPart := params[mid:]
 		if len(params) == 1 {
-			for range 3 {
-				tmpReq, err := utils.CloneRequest(resp.Request)
-				if err != nil {
-					continue
-				}
-				tmpResp, err := utils.CommonClient.Do(tmpReq)
-				if err != nil {
-					continue
-				}
-				if tmpResp.StatusCode != target.Response.StatusCode && utils.IsCacheHit(target, &tmpResp.Header) {
-					gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is paeam injection cache poising,%s", target.Request.URL, pvMap)
-				}
+			tmpReq, err := utils.CloneRequest(resp.Request)
+			if err != nil {
+				return
 			}
+			tmpResp, err := utils.CommonClient.Do(tmpReq)
+			if err != nil {
+				return
+			}
+			if tmpResp.StatusCode != target.Response.StatusCode && (utils.IsCacheHit(target, &tmpResp.Header) || utils.IsCacheMiss(target, &tmpResp.Header)) {
+				gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
+			}
+			return
 		}
 		wg.Add(2)
 		go p.findVulnerability(target, leftPart, wg)
@@ -190,14 +190,16 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 		// 判断Body中是否存在某些字符串
 		for param, value := range pvMap {
 			if strings.Contains(string(respBody), "<"+value) {
-				gologger.Info().Msgf("存在缓存投毒漏洞，paeam's value will be show in respBody,header name is %s:%s", param, utils.RandomString(5))
+				//params = slices.Delete(params, slices.Index(params, param), slices.Index(params, param))
+				gologger.Info().Msgf("存在缓存投毒漏洞，param's value will be show in respBody,param name is %s:%s", param, utils.RandomString(5))
 				break
 			}
 		}
 
 		for param, value := range pvMap {
 			if resp.Header.Get(value) != "" {
-				gologger.Info().Msgf("存在缓存投毒漏洞，paeam's value will be show in respBody,header name is %s:%s", param, utils.RandomString(5))
+				//params = slices.Delete(params, slices.Index(params, param), slices.Index(params, param))
+				gologger.Info().Msgf("存在缓存投毒漏洞，param's value will be show in respHeader,param name is %s:%s", param, utils.RandomString(5))
 				break
 			}
 		}
