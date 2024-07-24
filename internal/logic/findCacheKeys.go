@@ -32,7 +32,6 @@ func NewFindCacheKeys() *FindCacheKeys {
 }
 
 func (f *FindCacheKeys) Check(target *models.TargetStruct) error {
-
 	if target.Cache.NoCache {
 		return nil
 	}
@@ -97,7 +96,7 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) bool {
 		return false
 	}
 
-	for range 3 {
+	for range 2 {
 		randomParamName := utils.RandomString(5)
 		randomParamValue := utils.RandomString(5)
 		tmpResp, err := f.GetRespByDefGetParams(tmpRequest, randomParamName, randomParamValue)
@@ -107,11 +106,11 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) bool {
 		}
 		utils.CloseReader(tmpResp.Body)
 		tmpRespHeaders := &tmpResp.Header
-		if utils.IsCacheMiss(target, tmpRespHeaders) {
-			return true
+		if utils.IsCacheHit(target, tmpRespHeaders) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 //func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct) (bool, []string) {
@@ -218,7 +217,7 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct, params 
 	}
 	if len(params) == 1 {
 		if utils.IsCacheMiss(target, &tmpResp.Header) {
-			for range 3 {
+			for range 2 {
 				shouldIsHitReq, err := utils.CloneRequest(tmpResp.Request)
 				if err != nil {
 					continue
@@ -230,6 +229,7 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct, params 
 				if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
 					target.Cache.CKIsHeader = true
 					target.Cache.HeaderCacheKeys = append(target.Cache.HeaderCacheKeys, params[0])
+					break
 				}
 			}
 		}
@@ -385,7 +385,8 @@ func (f *FindCacheKeys) BinarySearchGetCacheKey(target *models.TargetStruct, par
 				}
 				if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
 					target.Cache.CKIsGet = true
-					target.Cache.HeaderCacheKeys = append(target.Cache.GetCacheKeys, params[0])
+					target.Cache.GetCacheKeys = append(target.Cache.GetCacheKeys, params[0])
+					break
 				}
 			}
 		}

@@ -176,8 +176,35 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 			if err != nil {
 				return
 			}
-			if tmpResp.StatusCode != target.Response.StatusCode && (utils.IsCacheHit(target, &tmpResp.Header) || utils.IsCacheMiss(target, &tmpResp.Header)) {
-				gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
+			if tmpResp.StatusCode != target.Response.StatusCode {
+				if utils.IsCacheHit(target, &tmpResp.Header) {
+					for range 3 {
+						shouldIsMissResp, err := GetResp(target, GET, pvMap)
+						if err != nil {
+							return
+						}
+						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) {
+							gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
+							return
+						}
+					}
+				}
+				if utils.IsCacheMiss(target, &tmpResp.Header) {
+					for range 3 {
+						shouldIsHitReq, err := utils.CloneRequest(tmpResp.Request)
+						if err != nil {
+							return
+						}
+						shouldIsHitResp, err := utils.CommonClient.Do(shouldIsHitReq)
+						if err != nil {
+							return
+						}
+						if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
+							gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
+							return
+						}
+					}
+				}
 			}
 			return
 		}

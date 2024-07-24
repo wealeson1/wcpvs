@@ -184,19 +184,44 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 		rightPart := headers[mid:]
 
 		if len(headers) == 1 {
-			for range 3 {
-				tmpReq, err := utils.CloneRequest(resp.Request)
-				if err != nil {
-					continue
-				}
-				tmpResp, err := utils.CommonClient.Do(tmpReq)
-				if err != nil {
-					continue
-				}
+			tmpReq, err := utils.CloneRequest(resp.Request)
+			if err != nil {
+				return
+			}
+			tmpResp, err := utils.CommonClient.Do(tmpReq)
+			if err != nil {
+				return
+			}
 
-				if tmpResp.StatusCode != target.Response.StatusCode && (utils.IsCacheHit(target, &tmpResp.Header) || utils.IsCacheMiss(target, &tmpResp.Header)) {
-					gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
-					return
+			if tmpResp.StatusCode != target.Response.StatusCode {
+				if utils.IsCacheHit(target, &tmpResp.Header) {
+					for range 3 {
+						shouldIsMissResp, err := GetResp(target, HEADER, pvMap)
+						if err != nil {
+							continue
+						}
+						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) {
+							gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
+							return
+						}
+					}
+
+				}
+				if utils.IsCacheMiss(target, &tmpResp.Header) {
+					for range 3 {
+						shouldIsHitReq, err := utils.CloneRequest(tmpResp.Request)
+						if err != nil {
+							continue
+						}
+						shouldIsHitResp, err := utils.CommonClient.Do(shouldIsHitReq)
+						if err != nil {
+							continue
+						}
+						if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
+							gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
+							return
+						}
+					}
 				}
 			}
 			return
