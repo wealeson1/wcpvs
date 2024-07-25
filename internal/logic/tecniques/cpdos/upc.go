@@ -39,7 +39,7 @@ func (u *UPC) Scan(target *models.TargetStruct) {
 	// 给Host头添加一个随机端口号，判断其是否为缓存键
 	tmpReq, err := utils.CloneRequest(target.Request)
 	if err != nil {
-		gologger.Error().Msg("UPCTecnique.Scan: " + err.Error())
+		//gologger.Error().Msg("UPCTecnique.Scan: " + err.Error())
 		return
 	}
 	randomPort := utils.RandomNumber(1, 65535)
@@ -48,10 +48,10 @@ func (u *UPC) Scan(target *models.TargetStruct) {
 		tmpReq.Host = newHostHeader
 		resp, err := utils.CommonClient.Do(tmpReq)
 		if err != nil {
-			gologger.Error().Msg("UPCTecnique.Scan: " + err.Error())
+			//gologger.Error().Msg("UPCTecnique.Scan: " + err.Error())
 			return
 		}
-		defer utils.CloseReader(resp.Body)
+		utils.CloseReader(resp.Body)
 		if resp.StatusCode == target.Response.StatusCode {
 			if utils.IsCacheHit(target, &resp.Header) {
 				u.scanCommonHttpPort(target)
