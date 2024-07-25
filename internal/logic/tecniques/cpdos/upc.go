@@ -82,18 +82,18 @@ func (u *UPC) scanCommonHttpPort(target *models.TargetStruct) {
 			utils.CloseReader(resp.Body)
 			if resp.StatusCode != target.Response.StatusCode {
 				for range 3 {
-					tmpReq, err := utils.CloneRequest(tmpReq)
+					tmpReq1, err := utils.CloneRequest(tmpReq)
 					if err != nil {
 						gologger.Error().Msg("UPCTecnique.scanCommonHttpPort: " + err.Error())
 						continue
 					}
-					resp, err := utils.CommonClient.Do(tmpReq)
+					resp1, err := utils.CommonClient.Do(tmpReq1)
 					if err != nil {
 						gologger.Error().Msg("UPCTecnique.scanCommonHttpPort: " + err.Error())
 						continue
 					}
-					utils.CloseReader(resp.Body)
-					if utils.IsCacheHit(target, &resp.Header) {
+					utils.CloseReader(resp1.Body)
+					if utils.IsCacheHit(target, &resp1.Header) {
 						gologger.Info().Msgf("Target %s has cpdos vulnerability and tecnique is UPC %s", target.Request.URL, tmpReq.Host)
 						return
 					}
