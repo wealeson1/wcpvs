@@ -66,17 +66,17 @@ func (p *Pnc) Scan(target *models.TargetStruct) {
 			return
 		}
 		for range 3 {
-			tmpReq, err := utils.CloneRequest(resp.Request)
+			tmpReq2, err := utils.CloneRequest(resp.Request)
 			if err != nil {
 				gologger.Error().Msgf("Target:%s,Pnc.scan %s", target.Request.URL, err.Error())
 				continue
 			}
-			resp, err := utils.CommonClient.Do(tmpReq)
+			resp2, err := utils.CommonClient.Do(tmpReq2)
 			if err != nil {
 				gologger.Error().Msgf("Target:%s,Pnc.scan %s", target.Request.URL, err.Error())
 				continue
 			}
-			if utils.IsCacheHit(target, &resp.Header) {
+			if utils.IsCacheHit(target, &resp2.Header) {
 				gologger.Info().Msgf("Target %s has a cpdos vulnerability,tecnique is PNC", target.Request.URL)
 				return
 			}

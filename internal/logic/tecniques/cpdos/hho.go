@@ -54,12 +54,12 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 						gologger.Error().Msgf("HHO.Scan:%s", err.Error())
 						return
 					}
-					resp, err := utils.CommonClient.Do(tmpReq)
+					resp2, err := utils.CommonClient.Do(tmpReq)
 					if err != nil {
 						gologger.Error().Msgf("HHO.Scan:%s", err.Error())
 						return
 					}
-					if utils.IsCacheHit(target, &resp.Header) {
+					if utils.IsCacheHit(target, &resp2.Header) {
 						gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.", target.Request.URL, headerSize)
 						return
 					}

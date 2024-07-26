@@ -39,7 +39,7 @@ func (u *UPC) Scan(target *models.TargetStruct) {
 	// 给Host头添加一个随机端口号，判断其是否为缓存键
 	tmpReq, err := utils.CloneRequest(target.Request)
 	if err != nil {
-		//gologger.Error().Msg("UPCTecnique.Scan: " + err.Error())
+		gologger.Error().Msgf("Target:%s,Upc.scan %s", target.Request.URL, err.Error())
 		return
 	}
 	randomPort := utils.RandomNumber(1, 65535)

@@ -41,21 +41,21 @@ func (h *Hmc) Scan(target *models.TargetStruct) {
 				}
 
 				for range 3 {
-					resp, err := utils.CommonClient.Do(tmpReq1)
+					resp2, err := utils.CommonClient.Do(tmpReq1)
 					if err != nil {
 						gologger.Error().Msgf("Hmc.Scan:%s", err.Error())
 						continue
 					}
-					tmpReq1, err = utils.CloneRequest(resp.Request)
+					tmpReq1, err = utils.CloneRequest(resp2.Request)
 					if err != nil {
 						gologger.Error().Msgf("Hmc.Scan:%s", err.Error())
 						continue
 					}
-					if utils.IsCacheHit(target, &resp.Header) {
+					if utils.IsCacheHit(target, &resp2.Header) {
 						gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using Hmc. %s:%s.", target.Request.URL, header, value)
 						return
 					}
-					utils.CloseReader(resp.Body)
+					utils.CloseReader(resp2.Body)
 				}
 			}
 		}

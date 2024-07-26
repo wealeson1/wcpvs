@@ -55,12 +55,12 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 				return
 			}
 			for range 3 {
-				resp, err := utils.CommonClient.Do(tmpReq1)
+				resp2, err := utils.CommonClient.Do(tmpReq1)
 				if err != nil {
 					gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 					continue
 				}
-				if utils.IsCacheHit(target, &resp.Header) {
+				if utils.IsCacheHit(target, &resp2.Header) {
 					gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HMO and %v.", target.Request.URL, payloadMap)
 					return
 				}
