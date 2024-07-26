@@ -4,6 +4,7 @@ import (
 	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
+	"golang.org/x/exp/maps"
 	"io"
 	"slices"
 	"strings"
@@ -13,10 +14,13 @@ import (
 var ParameterCP *PCPTechniques
 
 type PCPTechniques struct {
+	PcpParams map[string][]string
 }
 
 func NewParameterCP() *PCPTechniques {
-	return &PCPTechniques{}
+	return &PCPTechniques{
+		PcpParams: make(map[string][]string),
+	}
 }
 
 func init() {
@@ -124,6 +128,10 @@ func (p *PCPTechniques) Scan(target *models.TargetStruct) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go p.findVulnerability(target, paramsNoGetCacheKeys, &wg)
+	wg.Wait()
+	if len(p.PcpParams[target.Request.URL.String()]) != 0 {
+		gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, p.PcpParams[target.Request.URL.String()])
+	}
 }
 
 func (p *PCPTechniques) findVulnerabilityByAnyGet(target *models.TargetStruct) (bool, error) {
@@ -185,7 +193,7 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 						}
 						utils.CloseReader(shouldIsMissResp.Body)
 						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) {
-							gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
+							p.PcpParams[target.Request.URL.String()] = append(p.PcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
 							return
 						}
 					}
@@ -202,7 +210,8 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 						}
 						utils.CloseReader(shouldIsHitResp.Body)
 						if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
-							gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
+							p.PcpParams[target.Request.URL.String()] = append(p.PcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
+							//gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
 							return
 						}
 					}

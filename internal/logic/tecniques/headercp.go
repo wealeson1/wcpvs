@@ -4,12 +4,14 @@ import (
 	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
+	"golang.org/x/exp/maps"
 	"io"
 	"strings"
 	"sync"
 )
 
 type HeaderCP struct {
+	HcpParams map[string][]string
 }
 
 var HCPTechniques *HeaderCP
@@ -19,7 +21,9 @@ func init() {
 }
 
 func NewHeaderCP() *HeaderCP {
-	return &HeaderCP{}
+	return &HeaderCP{
+		HcpParams: make(map[string][]string),
+	}
 }
 
 func (h *HeaderCP) Scan2(target *models.TargetStruct) {
@@ -94,6 +98,9 @@ func (h *HeaderCP) Scan(target *models.TargetStruct) {
 	wg.Add(1)
 	go h.findVulnerability(target, models.Config.Headers, &wg)
 	wg.Wait()
+	if len(h.HcpParams[target.Request.URL.String()]) != 0 {
+		gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, h.HcpParams[target.Request.URL.String()])
+	}
 }
 
 // CheckMaxReqHeaderNum 检查最大支持的响应头数量
@@ -186,7 +193,8 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 							continue
 						}
 						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) {
-							gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
+							h.HcpParams[target.Request.URL.String()] = append(h.HcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
+							//gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
 							return
 						}
 					}
@@ -203,7 +211,9 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 							continue
 						}
 						if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
-							gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
+							h.HcpParams[target.Request.URL.String()] = append(h.HcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
+
+							//gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
 							return
 						}
 					}
