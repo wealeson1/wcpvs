@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 )
 
 type FindCacheKeys struct {
@@ -36,15 +37,17 @@ func (f *FindCacheKeys) Check(target *models.TargetStruct) error {
 		return nil
 	}
 
-	if f.FindCacheKeyByAnyGet(target) {
+	cacheKeyIsAnyGet, err := f.FindCacheKeyByAnyGet(target)
+	if cacheKeyIsAnyGet {
 		gologger.Info().Msgf("The target %s treats all GET parameters as cache keys.", target.Request.URL)
 		target.Cache.CKIsAnyGet = true
 	}
 
-	if !target.Cache.CKIsAnyGet {
+	if err == nil && !cacheKeyIsAnyGet {
 		f.FindCacheKeyByGet(target)
 		if target.Cache.CKIsGet {
 			gologger.Info().Msgf("The target %s has  Get paramters as cache key(s): %v", target.Request.URL, target.Cache.GetCacheKeys)
+			target.Cache.CKIsGet = true
 		}
 	}
 
@@ -85,32 +88,43 @@ func (f *FindCacheKeys) Check(target *models.TargetStruct) error {
 }
 
 // FindCacheKeyByAnyGet 判断是缓存机制是否忽略GET
-func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) bool {
+func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) (bool, error) {
 	if len(target.Cache.Indicators) == 0 || target.Cache.NoCache {
-		return false
+		return false, nil
 	}
 
 	tmpRequest, err := utils.CloneRequest(target.Request)
 	if err != nil {
 		gologger.Error().Msg(err.Error())
-		return false
+		return false, err
 	}
-
-	for range 2 {
-		randomParamName := utils.RandomString(5)
-		randomParamValue := utils.RandomString(5)
-		tmpResp, err := f.GetRespByDefGetParams(tmpRequest, randomParamName, randomParamValue)
+	paramName := utils.RandomString(5)
+	paramValue := utils.RandomString(5)
+	tmpResp, err := f.GetRespByDefGetParams(tmpRequest, paramName, paramValue)
+	if err != nil {
+		gologger.Error().Msg("FindCacheKeyByAnyGet:" + err.Error())
+		return false, err
+	}
+	utils.CloseReader(tmpResp.Body)
+	tmpRespHeaders := &tmpResp.Header
+	if utils.IsCacheMiss(target, tmpRespHeaders) {
+		tmpRequest2, err := utils.CloneRequest(target.Request)
 		if err != nil {
-			gologger.Error().Msg("FindCacheKeyByGet:" + err.Error())
-			return false
+			gologger.Error().Msg("FindCacheKeyByAnyGet:" + err.Error())
+			return false, err
 		}
-		utils.CloseReader(tmpResp.Body)
-		tmpRespHeaders := &tmpResp.Header
-		if utils.IsCacheHit(target, tmpRespHeaders) {
-			return false
+		time.Sleep(500 * time.Millisecond)
+		tmpResp2, err2 := f.GetRespByDefGetParams(tmpRequest2, paramName, paramValue)
+		if err2 != nil {
+			gologger.Error().Msg("FindCacheKeyByAnyGet:" + err2.Error())
+			return false, err2
+		}
+		utils.CloseReader(tmpResp2.Body)
+		if utils.IsCacheHit(target, &tmpResp2.Header) {
+			return true, nil
 		}
 	}
-	return true
+	return false, nil
 }
 
 //func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct) (bool, []string) {
@@ -219,6 +233,7 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct, params 
 		if utils.IsCacheMiss(target, &tmpResp.Header) {
 			for range 2 {
 				shouldIsHitReq, err := utils.CloneRequest(tmpResp.Request)
+				time.Sleep(500 * time.Millisecond)
 				if err != nil {
 					continue
 				}
@@ -369,7 +384,7 @@ func (f *FindCacheKeys) BinarySearchGetCacheKey(target *models.TargetStruct, par
 		f.BinarySearchGetCacheKey(target, rightPart, wg)
 		return
 	}
-	utils.CloseReader(tmpResp.Body)
+	defer utils.CloseReader(tmpResp.Body)
 	if tmpResp.StatusCode == target.Response.StatusCode && utils.IsCacheHit(target, &tmpResp.Header) {
 		return
 	}

@@ -9,11 +9,11 @@ import (
 )
 
 // IsCacheMiss 根据响应的 Header 判断是否命中缓存，未命中返回true，命中返回false
+// 定义一个基准Miss值
 func IsCacheMiss(target *models.TargetStruct, headers *http.Header) bool {
 	if len(target.Cache.Indicators) == 0 {
 		return false
 	}
-
 	if CacheMissByAge(headers) {
 		return true
 	}
@@ -27,24 +27,16 @@ func IsCacheHit(target *models.TargetStruct, headers *http.Header) bool {
 	if len(target.Cache.Indicators) == 0 {
 		return false
 	}
-	//if IsCacheValidByAge(*headers) {
-	//	return true
-	//}
 	// 优化华为云命中缓存策略
 	if headers.Get("age") != "" {
 		ageValue, err := strconv.Atoi(headers.Get("age"))
 		if err != nil {
 			return false
 		}
-		primitiveAge := target.Response.Header.Get("age")
-		if primitiveAge != "" {
-			primitiveAgeValue, err := strconv.Atoi(primitiveAge)
-			if err != nil {
-				return false
-			}
-			if primitiveAgeValue > 1 && (ageValue == 0 || ageValue == 1) {
-				return false
-			}
+		if ageValue == 0 {
+			return false
+		}
+		if ageValue > 1 {
 			return true
 		}
 	}

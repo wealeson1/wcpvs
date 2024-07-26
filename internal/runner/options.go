@@ -87,7 +87,7 @@ func ParseOptions() *Options {
 
 	flagSet.CreateGroup("http", "HTTP Options",
 		flagSet.BoolVarP(&options.UseHTTP2, "http2", "h2", false, "use HTTP2 protocol"),
-		flagSet.IntVarP(&options.TimeOut, "timeout", "to", 10, "timeout in seconds"),
+		flagSet.IntVarP(&options.TimeOut, "timeout", "to", 15, "timeout in seconds"),
 		flagSet.StringVarP(&options.ProxyCertPath, "proxy-cert", "pc", "", "path to proxy certificate"),
 		flagSet.StringVarP(&options.ProxyURL, "proxy-url", "purl", "", "proxy URL to use"),
 		flagSet.BoolVarP(&options.DoPost, "post", "P", false, "use POST method"),
