@@ -34,12 +34,12 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 		}
 		resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, payloadMap)
 		if err != nil {
-			gologger.Error().Msgf(err.Error())
+			gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 			return
 		}
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			gologger.Error().Msg("HMOTecniques.scan:" + err.Error())
+			gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 			return
 		}
 		//长度相差大于总体响应的十分之一，视为异常
@@ -51,12 +51,13 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 		if resp.StatusCode != target.Response.StatusCode {
 			tmpReq1, err := utils.CloneRequest(resp.Request)
 			if err != nil {
-				gologger.Error().Msgf(err.Error())
+				gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 				return
 			}
 			for range 3 {
 				resp, err := utils.CommonClient.Do(tmpReq1)
 				if err != nil {
+					gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 					continue
 				}
 				if utils.IsCacheHit(target, &resp.Header) {

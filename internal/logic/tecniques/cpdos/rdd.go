@@ -40,7 +40,7 @@ func (r *LRD) Scan(target *models.TargetStruct) {
 			}
 			resp, err := tecniques.GetResp(target, tecniques.GET, pvMap)
 			if err != nil {
-				gologger.Fatal().Msgf("%s\n", err)
+				gologger.Error().Msgf("Target:%s,Rdd.scan %s", target.Request.URL, err.Error())
 				return
 			}
 			location := resp.Header.Get("Location")

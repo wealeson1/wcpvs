@@ -45,19 +45,18 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 				gologger.Error().Msg(err.Error())
 				return
 			}
-
 			utils.CloseReader(resp.Body)
 			if (resp.StatusCode != target.Response.StatusCode) || (resp.StatusCode == http.StatusBadRequest && strings.Contains(string(respBodyBytes), "Too Large")) {
 				for range 3 {
 					time.Sleep(400 * time.Millisecond)
 					tmpReq, err := utils.CloneRequest(resp.Request)
 					if err != nil {
-						gologger.Error().Msg(err.Error())
+						gologger.Error().Msgf("HHO.Scan:%s", err.Error())
 						return
 					}
 					resp, err := utils.CommonClient.Do(tmpReq)
 					if err != nil {
-						gologger.Error().Msg(err.Error())
+						gologger.Error().Msgf("HHO.Scan:%s", err.Error())
 						return
 					}
 					if utils.IsCacheHit(target, &resp.Header) {

@@ -68,10 +68,12 @@ func (p *Pnc) Scan(target *models.TargetStruct) {
 		for range 3 {
 			tmpReq, err := utils.CloneRequest(resp.Request)
 			if err != nil {
+				gologger.Error().Msgf("Target:%s,Pnc.scan %s", target.Request.URL, err.Error())
 				continue
 			}
 			resp, err := utils.CommonClient.Do(tmpReq)
 			if err != nil {
+				gologger.Error().Msgf("Target:%s,Pnc.scan %s", target.Request.URL, err.Error())
 				continue
 			}
 			if utils.IsCacheHit(target, &resp.Header) {

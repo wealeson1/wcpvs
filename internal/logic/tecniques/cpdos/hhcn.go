@@ -60,15 +60,17 @@ func (h *Hhcn) Scan(target *models.TargetStruct) {
 	defer resp2.Body.Close()
 	if resp2.StatusCode != target.Response.StatusCode {
 		for range 3 {
-			tmpReq2, err := utils.CloneRequest(resp2.Request)
+			tmpReq3, err := tecniques.GetSourceRequestWithCacheKey(target)
+			if err != nil {
+				gologger.Error().Msg(err.Error())
+				return
+			}
+			tmpReq3.Host = strings.ToUpper(tmpReq3.Host)
+			resp3, err := http.DefaultClient.Do(tmpReq3)
 			if err != nil {
 				continue
 			}
-			resp2, err := http.DefaultClient.Do(tmpReq2)
-			if err != nil {
-				continue
-			}
-			if utils.IsCacheHit(target, &resp2.Header) {
+			if utils.IsCacheHit(target, &resp3.Header) {
 				gologger.Info().Msgf("Target %s has a cache-poisoning vulnerability by Host header case normalization", target.Request.URL)
 				return
 			}

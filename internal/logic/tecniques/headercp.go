@@ -91,21 +91,6 @@ func (h *HeaderCP) Scan(target *models.TargetStruct) {
 	if target.Cache.NoCache {
 		return
 	}
-	// 获取目标最大支持的请求头数量
-	//maxNum := CheckMaxReqHeaderNum(target)
-	//if maxNum == 0 {
-	//	return
-	//}
-	//// 将请求头分组
-	//groups := GroupSlice(models.Config.Headers, maxNum)
-	//if len(groups) == 0 {
-	//	return
-	//}
-
-	//for _, group := range groups {
-	//	wg.Add(1)
-	//	go h.findVulnerability(target, group, &wg)
-	//}
 	wg.Add(1)
 	go h.findVulnerability(target, models.Config.Headers, &wg)
 	wg.Wait()

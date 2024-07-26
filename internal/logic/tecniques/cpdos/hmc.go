@@ -43,10 +43,12 @@ func (h *Hmc) Scan(target *models.TargetStruct) {
 				for range 3 {
 					resp, err := utils.CommonClient.Do(tmpReq1)
 					if err != nil {
+						gologger.Error().Msgf("Hmc.Scan:%s", err.Error())
 						continue
 					}
 					tmpReq1, err = utils.CloneRequest(resp.Request)
 					if err != nil {
+						gologger.Error().Msgf("Hmc.Scan:%s", err.Error())
 						continue
 					}
 					if utils.IsCacheHit(target, &resp.Header) {

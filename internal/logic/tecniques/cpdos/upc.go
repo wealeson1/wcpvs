@@ -48,7 +48,7 @@ func (u *UPC) Scan(target *models.TargetStruct) {
 		tmpReq.Host = newHostHeader
 		resp, err := utils.CommonClient.Do(tmpReq)
 		if err != nil {
-			//gologger.Error().Msg("UPCTecnique.Scan: " + err.Error())
+			gologger.Error().Msgf("Target:%s,Upc.scan %s", target.Request.URL, err.Error())
 			return
 		}
 		utils.CloseReader(resp.Body)
@@ -69,14 +69,14 @@ func (u *UPC) scanCommonHttpPort(target *models.TargetStruct) {
 		// 获取一个必然可以回源的Request
 		tmpReq, err := tecniques.GetSourceRequestWithCacheKey(target)
 		if err != nil {
-			gologger.Error().Msg("UPCTecnique.scanCommonHttpPort: " + err.Error())
+			gologger.Error().Msgf("Target:%s,Upc.scan %s", target.Request.URL, err.Error())
 			continue
 		}
 		if !strings.Contains(tmpReq.Host, ":") {
 			tmpReq.Host = fmt.Sprintf("%s:%d", tmpReq.Host, port)
 			resp, err := utils.CommonClient.Do(tmpReq)
 			if err != nil {
-				gologger.Error().Msg("UPCTecnique.scanCommonHttpPort: " + err.Error())
+				gologger.Error().Msgf("Target:%s,Upc.scan %s", target.Request.URL, err.Error())
 				continue
 			}
 			utils.CloseReader(resp.Body)
@@ -84,12 +84,12 @@ func (u *UPC) scanCommonHttpPort(target *models.TargetStruct) {
 				for range 3 {
 					tmpReq1, err := utils.CloneRequest(tmpReq)
 					if err != nil {
-						gologger.Error().Msg("UPCTecnique.scanCommonHttpPort: " + err.Error())
+						gologger.Error().Msgf("Target:%s,Upc.scan %s", target.Request.URL, err.Error())
 						continue
 					}
 					resp1, err := utils.CommonClient.Do(tmpReq1)
 					if err != nil {
-						gologger.Error().Msg("UPCTecnique.scanCommonHttpPort: " + err.Error())
+						gologger.Error().Msgf("Target:%s,Upc.scan %s", target.Request.URL, err.Error())
 						continue
 					}
 					utils.CloseReader(resp1.Body)
