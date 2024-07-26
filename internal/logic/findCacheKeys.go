@@ -113,15 +113,17 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) (bool,
 			gologger.Error().Msg("FindCacheKeyByAnyGet:" + err.Error())
 			return false, err
 		}
-		time.Sleep(500 * time.Millisecond)
-		tmpResp2, err2 := f.GetRespByDefGetParams(tmpRequest2, paramName, paramValue)
-		if err2 != nil {
-			gologger.Error().Msg("FindCacheKeyByAnyGet:" + err2.Error())
-			return false, err2
-		}
-		utils.CloseReader(tmpResp2.Body)
-		if utils.IsCacheHit(target, &tmpResp2.Header) {
-			return true, nil
+		//time.Sleep(1000 * time.Millisecond)
+		for range 5 {
+			tmpResp2, err2 := f.GetRespByDefGetParams(tmpRequest2, paramName, paramValue)
+			if err2 != nil {
+				gologger.Error().Msg("FindCacheKeyByAnyGet:" + err2.Error())
+				return false, err2
+			}
+			utils.CloseReader(tmpResp2.Body)
+			if utils.IsCacheHit(target, &tmpResp2.Header) {
+				return true, nil
+			}
 		}
 	}
 	return false, nil

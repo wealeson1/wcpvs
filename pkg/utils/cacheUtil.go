@@ -208,7 +208,7 @@ func IsCacheValidByOtherCustomHeaders(headers http.Header) bool {
 		if strings.Contains(headerValues, "miss") && strings.Contains(headerValues, "hit") {
 			return false
 		}
-		if strings.Contains(headerValues, "hit") || strings.Contains(headerValues, "cached") {
+		if strings.Contains(headerValues, "hit") || strings.Contains(headerValues, "cached") || strings.Contains(headerValues, "expired") {
 			return true
 		}
 	}
