@@ -49,9 +49,16 @@ func main() {
 	}
 
 	for _, url := range runner.ScanOptions.Urls {
-		if resp, err := utils.CommonClient.Get(url); err != nil || resp.StatusCode > 400 {
+		resp, err := utils.CommonClient.Get(url)
+		if err != nil {
+			gologger.Warning().Msgf("Target:%s,%s", url, err)
 			continue
 		}
+		if resp.StatusCode >= 500 {
+			gologger.Warning().Msgf("Target:%s,%s", url, resp.Status)
+			continue
+		}
+
 		if !runner.ScanOptions.Crawler {
 			primitiveResp, err := utils.CommonClient.Get(url)
 			if err != nil || primitiveResp == nil {
