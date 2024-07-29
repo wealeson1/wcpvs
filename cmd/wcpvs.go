@@ -49,7 +49,7 @@ func main() {
 	}
 
 	// 存活检查
-	aliveTargets := AliveCheck(runner.ScanOptions.Urls)
+	aliveTargets := AliveCheck(runner.ScanOptions.Urls, threadCount)
 	if !runner.ScanOptions.Crawler && len(aliveTargets) > 0 {
 		for _, target := range aliveTargets {
 			TargetsChannel <- target
@@ -87,42 +87,55 @@ func Monitor(pid int) {
 		cpuPercent, cp, memPercent, threadCount, gNum)
 }
 
-func AliveCheck(urls []string) []*models.TargetStruct {
+func AliveCheck(urls []string, maxGoroutines int) []*models.TargetStruct {
 	var wg sync.WaitGroup
 	aliveUrlTargets := make([]*models.TargetStruct, 0)
+	urlChan := make(chan string, maxGoroutines)
+
+	for i := 0; i < maxGoroutines; i++ {
+		go func() {
+			for url := range urlChan {
+				resp, err := utils.CommonClient.Get(url)
+				if err != nil {
+					gologger.Error().Msgf(err.Error())
+					wg.Done()
+					continue
+				}
+				if resp.StatusCode >= 500 {
+					gologger.Error().Msgf("Target:%s,%s", url, resp.Status)
+					wg.Done()
+					continue
+				}
+				primitiveResp, err := utils.CommonClient.Get(url)
+				if err != nil || primitiveResp == nil {
+					wg.Done()
+					continue
+				}
+				respBody, err := io.ReadAll(primitiveResp.Body)
+				if err != nil {
+					gologger.Error().Msg("wcpvs.main:" + err.Error())
+					wg.Done()
+					continue
+				}
+				utils.CloseReader(primitiveResp.Body)
+				target := &models.TargetStruct{
+					Request:  primitiveResp.Request,
+					Response: primitiveResp,
+					RespBody: respBody,
+					Cache:    &models.CacheStruct{},
+				}
+				aliveUrlTargets = append(aliveUrlTargets, target)
+				wg.Done()
+			}
+		}()
+	}
+
 	for _, url := range urls {
 		wg.Add(1)
-		go func(url string) {
-			defer wg.Done()
-			resp, err := utils.CommonClient.Get(url)
-			if err != nil {
-				gologger.Error().Msgf(err.Error())
-				return
-			}
-			if resp.StatusCode >= 500 {
-				gologger.Error().Msgf("Target:%s,%s", url, resp.Status)
-				return
-			}
-			//aliveUrls = append(aliveUrls, url)
-			primitiveResp, err := utils.CommonClient.Get(url)
-			if err != nil || primitiveResp == nil {
-				return
-			}
-			respBody, err := io.ReadAll(primitiveResp.Body)
-			if err != nil {
-				gologger.Error().Msg("wcpvs.main:" + err.Error())
-				return
-			}
-			utils.CloseReader(primitiveResp.Body)
-			target := &models.TargetStruct{
-				Request:  primitiveResp.Request,
-				Response: primitiveResp,
-				RespBody: respBody,
-				Cache:    &models.CacheStruct{},
-			}
-			aliveUrlTargets = append(aliveUrlTargets, target)
-		}(url)
+		urlChan <- url
 	}
+
+	close(urlChan)
 	wg.Wait()
 	return aliveUrlTargets
 }
