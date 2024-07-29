@@ -130,7 +130,7 @@ func (p *PCPTechniques) Scan(target *models.TargetStruct) {
 	go p.findVulnerability(target, paramsNoGetCacheKeys, &wg)
 	wg.Wait()
 	if len(p.PcpParams[target.Request.URL.String()]) != 0 {
-		gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, p.PcpParams[target.Request.URL.String()])
+		gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%v", target.Request.URL, p.PcpParams[target.Request.URL.String()])
 	}
 }
 
