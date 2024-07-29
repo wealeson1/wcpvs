@@ -48,37 +48,15 @@ func main() {
 		}()
 	}
 
-	for _, url := range runner.ScanOptions.Urls {
-		resp, err := utils.CommonClient.Get(url)
-		if err != nil {
-			gologger.Warning().Msgf("Target:%s,%s", url, err)
-			continue
-		}
-		if resp.StatusCode >= 500 {
-			gologger.Warning().Msgf("Target:%s,%s", url, resp.Status)
-			continue
-		}
-
-		if !runner.ScanOptions.Crawler {
-			primitiveResp, err := utils.CommonClient.Get(url)
-			if err != nil || primitiveResp == nil {
-				continue
-			}
-			respBody, err := io.ReadAll(primitiveResp.Body)
-			if err != nil {
-				gologger.Error().Msg("wcpvs.main:" + err.Error())
-				continue
-			}
-			utils.CloseReader(primitiveResp.Body)
-			target := &models.TargetStruct{
-				Request:  primitiveResp.Request,
-				Response: primitiveResp,
-				RespBody: respBody,
-				Cache:    &models.CacheStruct{},
-			}
+	// 存活检查
+	aliveTargets := AliveCheck(runner.ScanOptions.Urls)
+	if !runner.ScanOptions.Crawler && len(aliveTargets) > 0 {
+		for _, target := range aliveTargets {
 			TargetsChannel <- target
-		} else {
-			runner.Crawl(url, TargetsChannel)
+		}
+	} else {
+		for _, target := range aliveTargets {
+			runner.Crawl(target.Request.URL.String(), TargetsChannel)
 		}
 	}
 	// 通知所有goroutine任务已完成
@@ -107,4 +85,44 @@ func Monitor(pid int) {
 	gNum := runtime.NumGoroutine()
 	fmt.Printf("CPU Usage: %.2f%% (%.2f%% per core), Memory Usage: %.2f%%, Thread Count: %d, Goroutine Count: %d\n",
 		cpuPercent, cp, memPercent, threadCount, gNum)
+}
+
+func AliveCheck(urls []string) []*models.TargetStruct {
+	var wg sync.WaitGroup
+	aliveUrlTargets := make([]*models.TargetStruct, 0)
+	for _, url := range urls {
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+			resp, err := utils.CommonClient.Get(url)
+			if err != nil {
+				gologger.Error().Msgf(err.Error())
+				return
+			}
+			if resp.StatusCode >= 500 {
+				gologger.Error().Msgf("Target:%s,%s", url, resp.Status)
+				return
+			}
+			//aliveUrls = append(aliveUrls, url)
+			primitiveResp, err := utils.CommonClient.Get(url)
+			if err != nil || primitiveResp == nil {
+				return
+			}
+			respBody, err := io.ReadAll(primitiveResp.Body)
+			if err != nil {
+				gologger.Error().Msg("wcpvs.main:" + err.Error())
+				return
+			}
+			utils.CloseReader(primitiveResp.Body)
+			target := &models.TargetStruct{
+				Request:  primitiveResp.Request,
+				Response: primitiveResp,
+				RespBody: respBody,
+				Cache:    &models.CacheStruct{},
+			}
+			aliveUrlTargets = append(aliveUrlTargets, target)
+		}(url)
+	}
+	wg.Wait()
+	return aliveUrlTargets
 }
