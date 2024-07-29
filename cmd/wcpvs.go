@@ -49,7 +49,7 @@ func main() {
 	}
 
 	// 存活检查
-	aliveTargets := AliveCheck(runner.ScanOptions.Urls, threadCount)
+	aliveTargets := AliveCheck(runner.ScanOptions.Urls, 1000)
 	if !runner.ScanOptions.Crawler && len(aliveTargets) > 0 {
 		for _, target := range aliveTargets {
 			TargetsChannel <- target
