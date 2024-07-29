@@ -1,12 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"github.com/projectdiscovery/gologger"
+	"github.com/shirou/gopsutil/v3/process"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/internal/runner"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -18,6 +24,15 @@ func main() {
 	threadCount := runner.ScanOptions.Threads
 	var wg sync.WaitGroup
 	var TargetsChannel = make(chan *models.TargetStruct, 1000000)
+
+	// 启动资源监控goroutine
+	go func() {
+		for {
+			Monitor(os.Getpid())
+			time.Sleep(10 * time.Second) // 每隔10秒打印一次监控信息
+		}
+	}()
+
 	// 启动工作goroutine
 	for i := 0; i < threadCount; i++ {
 		wg.Add(1)
@@ -59,8 +74,30 @@ func main() {
 			runner.Crawl(url, TargetsChannel)
 		}
 	}
-
 	// 通知所有goroutine任务已完成
 	close(TargetsChannel)
 	wg.Wait()
+}
+
+func Monitor(pid int) {
+	p, err := process.NewProcess(int32(pid))
+	if err != nil {
+		gologger.Fatal().Msgf("Could not create process: %v", err)
+		return
+	}
+	cpuPercent, err := p.Percent(time.Second)
+	if err != nil {
+		gologger.Fatal().Msgf("Could not get CPU percent: %v", err)
+		return
+	}
+	memPercent, err := p.MemoryPercent()
+	if err != nil {
+		gologger.Fatal().Msgf("Could not get memory percent: %v", err)
+		return
+	}
+	cp := cpuPercent / float64(runtime.NumCPU())
+	threadCount := pprof.Lookup("threadcreate").Count()
+	gNum := runtime.NumGoroutine()
+	fmt.Printf("CPU Usage: %.2f%% (%.2f%% per core), Memory Usage: %.2f%%, Thread Count: %d, Goroutine Count: %d\n",
+		cpuPercent, cp, memPercent, threadCount, gNum)
 }
