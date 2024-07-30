@@ -224,6 +224,10 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct, params 
 	}
 	tmpResp, err := utils.CommonClient.Do(tmpRequest)
 	if err != nil {
+		// 防止一直err，造成死循环
+		if len(params) == 1 {
+			return
+		}
 		wg.Add(2)
 		go f.BinarySearchHeaders(target, leftPart, wg)
 		go f.BinarySearchHeaders(target, rightPart, wg)
