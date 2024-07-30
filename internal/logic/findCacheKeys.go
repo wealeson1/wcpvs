@@ -1,7 +1,6 @@
 package logic
 
 import (
-	"fmt"
 	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
@@ -237,9 +236,6 @@ func (f *FindCacheKeys) BinarySearchHeaders(target *models.TargetStruct, params 
 	if tmpResp.StatusCode == target.Response.StatusCode && utils.IsCacheHit(target, &tmpResp.Header) {
 		return
 	}
-	fmt.Println("--------")
-	fmt.Println(len(params))
-	fmt.Println("--------")
 	if len(params) == 1 {
 		if utils.IsCacheMiss(target, &tmpResp.Header) {
 			for range 2 {
