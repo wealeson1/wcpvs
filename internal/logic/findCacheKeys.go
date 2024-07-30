@@ -390,6 +390,10 @@ func (f *FindCacheKeys) BinarySearchGetCacheKey(target *models.TargetStruct, par
 	tmpReq.URL.RawQuery = query.Encode()
 	tmpResp, err := utils.CommonClient.Do(tmpReq)
 	if err != nil {
+		// 防止一直err，造成死循环
+		if len(params) == 1 {
+			return
+		}
 		wg.Add(2)
 		f.BinarySearchGetCacheKey(target, leftPart, wg)
 		f.BinarySearchGetCacheKey(target, rightPart, wg)
