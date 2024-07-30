@@ -9,7 +9,6 @@ import (
 )
 
 // IsCacheMiss 根据响应的 Header 判断是否命中缓存，未命中返回true，命中返回false
-// 定义一个基准Miss值
 func IsCacheMiss(target *models.TargetStruct, headers *http.Header) bool {
 	if len(target.Cache.Indicators) == 0 {
 		return false

@@ -29,7 +29,7 @@ func main() {
 	go func() {
 		for {
 			Monitor(os.Getpid())
-			time.Sleep(10 * time.Second) // 每隔10秒打印一次监控信息
+			time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
 		}
 	}()
 
