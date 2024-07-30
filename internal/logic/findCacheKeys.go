@@ -55,7 +55,7 @@ func (f *FindCacheKeys) Check(target *models.TargetStruct) error {
 	if f.FindCacheKeyByHeader(target) {
 		gologger.Info().Msgf("The target %s has request header cache key(s): %v.", target.Request.URL, target.Cache.HeaderCacheKeys)
 	}
-	gologger.Info().Msg("Header 缓存键检查结束")
+	//gologger.Info().Msg("Header 缓存键检查结束")
 
 	if target.Cache.CKIsAnyGet || target.Cache.CKIsHeader {
 		resp, err := tecniques.GetResp(target, tecniques.COOKIE, map[string]string{utils.RandomString(5): utils.RandomString(5)})

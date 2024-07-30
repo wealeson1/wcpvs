@@ -8,7 +8,6 @@ import (
 	"github.com/wealeson1/wcpvs/internal/runner"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
-	"os"
 	"runtime"
 	"runtime/pprof"
 	"sync"
@@ -26,12 +25,12 @@ func main() {
 	var TargetsChannel = make(chan *models.TargetStruct, 1000000)
 
 	// 启动资源监控goroutine
-	go func() {
-		for {
-			Monitor(os.Getpid())
-			time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
-		}
-	}()
+	//go func() {
+	//	for {
+	//		Monitor(os.Getpid())
+	//		time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
+	//	}
+	//}()
 
 	// 启动工作goroutine
 	for i := 0; i < threadCount; i++ {
