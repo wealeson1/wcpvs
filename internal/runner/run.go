@@ -30,6 +30,7 @@ func Run(target *models.TargetStruct) {
 	scans := []Scan{
 		cpdos.HHOTecnique,
 		cpdos.HMOTecniques,
+		cpdos.BlcpTecnique,
 		tecniques.HCPTechniques,
 		tecniques.ParameterCP,
 		tecniques.CCPTechniques,

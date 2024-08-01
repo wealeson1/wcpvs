@@ -5,7 +5,6 @@ import (
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
-	"io"
 )
 
 type Hmo struct {
@@ -37,18 +36,33 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 			gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 			return
 		}
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
-			return
-		}
+		utils.CloseReader(resp.Body)
+		//respBody, err := io.ReadAll(resp.Body)
+		//if err != nil {
+		//	gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
+		//	return
+		//}
 		//长度相差大于总体响应的十分之一，视为异常
-		diff := len(target.RespBody) - len(respBody)
-		if diff < 0 {
-			diff = -diff
-		}
-		//|| diff > (len(target.RespBody)/3)
+		//diff := len(target.RespBody) - len(respBody)
+		//if diff < 0 {
+		//	diff = -diff
+		//}
 		if resp.StatusCode != target.Response.StatusCode {
+			// 情况，偶尔一次的错误会导致状态码异常，但是又不是Payload造成的异常
+			// 第二次循环的时候又正常了，并且正常的页面是有缓存机制的，就判定存在漏洞了
+			// 预防：响应异常状态码的时候判断下是否存在缓存机制，如果不存在，就继续测试
+			//tmpTarget := &models.TargetStruct{
+			//	Response: resp,
+			//	Cache:    &models.CacheStruct{},
+			//}
+			//hasCache, _ := logic.Checker.IsCacheAvailable(tmpTarget)
+			//if !hasCache {
+			//	continue
+			//}
+			hasCustomHeaders, _ := utils.HasCustomHeaders(resp)
+			if !hasCustomHeaders {
+				continue
+			}
 			tmpReq1, err := utils.CloneRequest(resp.Request)
 			if err != nil {
 				gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
