@@ -5,6 +5,7 @@ import (
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
+	"time"
 )
 
 var HMCTecniques *Hmc
@@ -28,6 +29,7 @@ func NewHmc() *Hmc {
 func (h *Hmc) Scan(target *models.TargetStruct) {
 	for _, header := range h.headers {
 		for _, value := range h.values {
+			time.Sleep(500 * time.Millisecond)
 			resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, map[string]string{header: value})
 			if err != nil {
 				continue

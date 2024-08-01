@@ -8,6 +8,7 @@ import (
 	"github.com/wealeson1/wcpvs/internal/runner"
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
+	"net/http"
 	"runtime"
 	"runtime/pprof"
 	"sync"
@@ -94,12 +95,23 @@ func AliveCheck(urls []string, maxGoroutines int) []*models.TargetStruct {
 	for i := 0; i < maxGoroutines; i++ {
 		go func() {
 			for url := range urlChan {
-				resp, err := utils.CommonClient.Get(url)
+				var resp *http.Response
+				var err error
+				// 3 time for retry
+				for range 3 {
+					resp, err = utils.CommonClient.Get(url)
+					if err != nil {
+						//gologger.Error().Msgf(err.Error())
+						continue
+					}
+					break
+				}
 				if err != nil {
 					gologger.Error().Msgf(err.Error())
 					wg.Done()
 					continue
 				}
+
 				if resp.StatusCode >= 500 {
 					gologger.Error().Msgf("Target:%s,%s", url, resp.Status)
 					wg.Done()
