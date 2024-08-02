@@ -10,6 +10,10 @@ import (
 )
 
 func Run(target *models.TargetStruct) {
+
+	//仅调试
+	gologger.Info().Msgf("当前扫描的目标是：%s", target.Request.URL)
+
 	err := logic.Checker.Check(target)
 	if err != nil {
 		return

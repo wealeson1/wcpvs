@@ -49,7 +49,8 @@ func main() {
 	}
 
 	// 存活检查
-	aliveTargets := AliveCheck(runner.ScanOptions.Urls, 1000)
+	aliveTargets := AliveCheck(runner.ScanOptions.Urls, 500)
+	gologger.Info().Msgf("目标存活数量：%d", len(aliveTargets))
 	if !runner.ScanOptions.Crawler && len(aliveTargets) > 0 {
 		for _, target := range aliveTargets {
 			TargetsChannel <- target
@@ -101,13 +102,12 @@ func AliveCheck(urls []string, maxGoroutines int) []*models.TargetStruct {
 				for range 3 {
 					resp, err = utils.CommonClient.Get(url)
 					if err != nil {
-						//gologger.Error().Msgf(err.Error())
 						continue
 					}
 					break
 				}
 				if err != nil {
-					gologger.Error().Msgf(err.Error())
+					//gologger.Error().Msgf(err.Error())
 					wg.Done()
 					continue
 				}
