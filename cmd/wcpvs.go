@@ -9,6 +9,7 @@ import (
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"runtime/pprof"
 	"sync"
@@ -26,12 +27,12 @@ func main() {
 	var TargetsChannel = make(chan *models.TargetStruct, 1000000)
 
 	// 启动资源监控goroutine
-	//go func() {
-	//	for {
-	//		Monitor(os.Getpid())
-	//		time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
-	//	}
-	//}()
+	go func() {
+		for {
+			Monitor(os.Getpid())
+			time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
+		}
+	}()
 
 	// 启动工作goroutine
 	for i := 0; i < threadCount; i++ {
@@ -49,7 +50,7 @@ func main() {
 	}
 
 	// 存活检查
-	aliveTargets := AliveCheck(runner.ScanOptions.Urls, 500)
+	aliveTargets := AliveCheck(runner.ScanOptions.Urls, 1000)
 	gologger.Info().Msgf("目标存活数量：%d", len(aliveTargets))
 	if !runner.ScanOptions.Crawler && len(aliveTargets) > 0 {
 		for _, target := range aliveTargets {
@@ -63,6 +64,7 @@ func main() {
 	// 通知所有goroutine任务已完成
 	close(TargetsChannel)
 	wg.Wait()
+	gologger.Info().Msgf("扫描结束")
 }
 
 func Monitor(pid int) {
@@ -107,16 +109,17 @@ func AliveCheck(urls []string, maxGoroutines int) []*models.TargetStruct {
 					break
 				}
 				if err != nil {
-					//gologger.Error().Msgf(err.Error())
+					gologger.Error().Msgf("%s [Error]", url)
 					wg.Done()
 					continue
 				}
-
+				utils.CloseReader(resp.Body)
 				if resp.StatusCode >= 500 {
-					gologger.Error().Msgf("Target:%s,%s", url, resp.Status)
+					gologger.Error().Msgf("%s [%s]", url, resp.Status)
 					wg.Done()
 					continue
 				}
+				gologger.Info().Msgf("%s [%s]", url, resp.Status)
 				primitiveResp, err := utils.CommonClient.Get(url)
 				if err != nil || primitiveResp == nil {
 					wg.Done()
