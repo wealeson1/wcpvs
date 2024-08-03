@@ -114,7 +114,7 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) (bool,
 			gologger.Error().Msg("FindCacheKeyByAnyGet:" + err.Error())
 			return false, err
 		}
-		//time.Sleep(1000 * time.Millisecond)
+		time.Sleep(2000 * time.Millisecond)
 		for range 5 {
 			tmpResp2, err2 := f.GetRespByDefGetParams(tmpRequest2, paramName, paramValue)
 			if err2 != nil {
