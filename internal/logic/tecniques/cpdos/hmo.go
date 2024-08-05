@@ -74,7 +74,7 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 					gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 					continue
 				}
-				if utils.IsCacheHit(target, &resp2.Header) {
+				if utils.IsCacheHit(target, &resp2.Header) && target.Response.StatusCode != resp2.StatusCode {
 					gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HMO and %v.", target.Request.URL, payloadMap)
 					return
 				}

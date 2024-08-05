@@ -92,10 +92,10 @@ func CacheMissByOthers(target *models.TargetStruct, headers *http.Header) bool {
 	customHeaderOfTarget := target.Cache.Indicators
 	for header, _ := range customHeaderOfTarget {
 		headerValues := strings.ToLower(headers.Get(header))
-		if strings.Contains(headerValues, "miss") && strings.Contains(headerValues, "hit") {
-			return false
-		}
-		if strings.Contains(headerValues, "miss") {
+		//if strings.Contains(headerValues, "miss") && strings.Contains(headerValues, "hit") {
+		//	return false
+		//}
+		if strings.Contains(headerValues, "miss") || strings.Contains(headerValues, "bypass") || strings.Contains(headerValues, "uncached") {
 			return true
 		} else if strings.Contains(headerValues, "hit") || strings.Contains(headerValues, "cached") {
 			return false

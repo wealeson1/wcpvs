@@ -56,7 +56,7 @@ func (b *Blcp) Scan(target *models.TargetStruct) {
 				if err != nil {
 					continue
 				}
-				if utils.IsCacheHit(target, &tmpResp2.Header) {
+				if utils.IsCacheHit(target, &tmpResp2.Header) && target.Response.StatusCode != tmpResp2.StatusCode {
 					gologger.Info().Msgf("Target %s has a CPDOS vulnerability, detected using a request with a blacklisted security scanner's User-Agent: %s", target.Request.URL, v)
 					return
 				}

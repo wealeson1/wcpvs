@@ -192,7 +192,7 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 							return
 						}
 						utils.CloseReader(shouldIsMissResp.Body)
-						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) {
+						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) && target.Response.StatusCode != shouldIsMissResp.StatusCode {
 							p.PcpParams[target.Request.URL.String()] = append(p.PcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
 							return
 						}
@@ -209,7 +209,7 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 							return
 						}
 						utils.CloseReader(shouldIsHitResp.Body)
-						if utils.IsCacheHit(target, &shouldIsHitResp.Header) {
+						if utils.IsCacheHit(target, &shouldIsHitResp.Header) && target.Response.StatusCode != shouldIsHitResp.StatusCode {
 							p.PcpParams[target.Request.URL.String()] = append(p.PcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
 							//gologger.Info().Msgf("Target %s has cahce-poising vulnerability,tecnique is param injection cache poising,%s", target.Request.URL, pvMap)
 							return

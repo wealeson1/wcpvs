@@ -107,8 +107,7 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) (bool,
 		return false, err
 	}
 	utils.CloseReader(tmpResp.Body)
-	tmpRespHeaders := &tmpResp.Header
-	if utils.IsCacheMiss(target, tmpRespHeaders) {
+	if utils.IsCacheMiss(target, &tmpResp.Header) {
 		tmpRequest2, err := utils.CloneRequest(target.Request)
 		if err != nil {
 			gologger.Error().Msg("FindCacheKeyByAnyGet:" + err.Error())

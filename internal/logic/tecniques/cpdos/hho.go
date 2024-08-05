@@ -46,6 +46,8 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 				return
 			}
 			utils.CloseReader(resp.Body)
+
+			// 华为云的特殊案例
 			if (resp.StatusCode != target.Response.StatusCode) || (resp.StatusCode == http.StatusBadRequest && strings.Contains(string(respBodyBytes), "Too Large")) {
 				for range 3 {
 					time.Sleep(400 * time.Millisecond)
@@ -76,7 +78,7 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 						gologger.Error().Msgf("HHO.Scan:%s", err.Error())
 						return
 					}
-					if utils.IsCacheHit(target, &resp2.Header) {
+					if utils.IsCacheHit(target, &resp2.Header) && target.Response.StatusCode != resp2.StatusCode {
 						gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HHO. Test: AAAAA...%d.", target.Request.URL, headerSize)
 						return
 					}
