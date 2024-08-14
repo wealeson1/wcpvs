@@ -93,7 +93,7 @@ func Monitor[T any](pid int, targetsChannel *chan T, rawUrlChannel *chan string)
 		return
 	}
 	cp := cpuPercent / float64(runtime.NumCPU())
-	threadCount := pprof.Lookup("threadCreate").Count()
+	threadCount := pprof.Lookup("threadcreate").Count()
 	gNum := runtime.NumGoroutine()
 	gologger.Info().Msgf("CPU Usage: %.2f%% (%.2f%% per core), Memory Usage: %.2f%%, Thread Count: %d, Goroutine Count: %d\n",
 		cpuPercent, cp, memPercent, threadCount, gNum)
