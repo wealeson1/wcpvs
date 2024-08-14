@@ -26,7 +26,7 @@ func main() {
 	threadCount := runner.ScanOptions.Threads
 	var wg sync.WaitGroup
 	var TargetsChannel = make(chan *models.TargetStruct, 10)
-	var rawUrlChannel = make(chan string, 100)
+	var rawUrlChannel = make(chan string, 1000)
 
 	// 启动资源监控goroutine
 	go func() {
@@ -59,7 +59,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		Mediator(&rawUrlChannelReadOnly, 10, &TargetsChannelWriteOnly)
+		Mediator(&rawUrlChannelReadOnly, 1000, &TargetsChannelWriteOnly)
 	}()
 
 	// 如果未开启爬虫模式
@@ -171,13 +171,16 @@ func IsAlive(rawUrl string) (bool, error, *models.TargetStruct) {
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0")
 		resp, err := utils.CommonClient.Do(req)
 		if err != nil {
+			gologger.Error().Msgf("%s [%s]", rawUrl, err.Error())
 			continue
 		}
 		if resp.StatusCode >= 500 {
+			gologger.Error().Msgf("%s [%d]", rawUrl, resp.StatusCode)
 			continue
 		}
 		byteRespBody, err := io.ReadAll(resp.Body)
 		if err != nil {
+			gologger.Error().Msgf("%s [%s]", rawUrl, err.Error())
 			continue
 		}
 		utils.CloseReader(resp.Body)
