@@ -108,20 +108,39 @@ func Monitor(pid int) {
 // @return nil
 func Mediator(urlsChan *<-chan string, maxThread int, targetChan *chan<- *models.TargetStruct) {
 	var wg sync.WaitGroup
-	//// maxThread 默认为10
-	//if maxThread < 1 {
-	//	maxThread = 10
-	//}
-	//// 开启 maxThread 个线程处理URL
-	//for range maxThread {
+	// maxThread 默认为10
+	if maxThread < 1 {
+		maxThread = 10
+	}
+	// 开启 maxThread 个线程处理URL
+	for range maxThread {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				rawUrl, ok := <-*urlsChan
+				// 如果上游chan通知已经关闭，并且遗留数据已经被处理完毕，关闭所有线程
+				if !ok {
+					return
+				}
+				isAlive, err, target := IsAlive(rawUrl)
+				if err == nil && isAlive == true {
+					*targetChan <- target
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	//通知下游已经没有Target会被生产出来了
+	close(*targetChan)
+	//for {
+	//	rawUrl, ok := <-*urlsChan
+	//	if !ok {
+	//		break
+	//	}
 	//	wg.Add(1)
 	//	go func() {
 	//		defer wg.Done()
-	//		rawUrl, ok := <-*urlsChan
-	//		// 如果上游chan通知已经关闭，并且遗留数据已经被处理完毕，关闭所有线程
-	//		if !ok {
-	//			return
-	//		}
 	//		isAlive, err, target := IsAlive(rawUrl)
 	//		if err == nil && isAlive == true {
 	//			*targetChan <- target
@@ -129,25 +148,8 @@ func Mediator(urlsChan *<-chan string, maxThread int, targetChan *chan<- *models
 	//	}()
 	//}
 	//wg.Wait()
-	// 通知下游已经没有Target会被生产出来了
+	//// 通知下游已经没有Target会被生产出来了
 	//close(*targetChan)
-	for {
-		rawUrl, ok := <-*urlsChan
-		if !ok {
-			break
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			isAlive, err, target := IsAlive(rawUrl)
-			if err == nil && isAlive == true {
-				*targetChan <- target
-			}
-		}()
-	}
-	wg.Wait()
-	// 通知下游已经没有Target会被生产出来了
-	close(*targetChan)
 }
 
 // IsAlive rawURL 存活检查
