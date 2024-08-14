@@ -9,6 +9,7 @@ import (
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -24,7 +25,8 @@ func main() {
 	// 默认线程数
 	threadCount := runner.ScanOptions.Threads
 	var wg sync.WaitGroup
-	var TargetsChannel = make(chan *models.TargetStruct, 1000000)
+	var TargetsChannel = make(chan *models.TargetStruct, 10)
+	var rawUrlChannel = make(chan string, 100)
 
 	// 启动资源监控goroutine
 	go func() {
@@ -35,7 +37,7 @@ func main() {
 	}()
 
 	// 启动工作goroutine
-	for i := 0; i < threadCount; i++ {
+	for range threadCount {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -49,24 +51,32 @@ func main() {
 		}()
 	}
 
-	// 存活检查
-	aliveTargets := AliveCheck(runner.ScanOptions.Urls, 1000)
-	gologger.Info().Msgf("目标存活数量：%d", len(aliveTargets))
-	if !runner.ScanOptions.Crawler && len(aliveTargets) > 0 {
-		for _, target := range aliveTargets {
-			TargetsChannel <- target
+	// 强制转换为单向channel
+	rawUrlChannelReadOnly := (<-chan string)(rawUrlChannel)
+	TargetsChannelWriteOnly := (chan<- *models.TargetStruct)(TargetsChannel)
+
+	// 开启中介者模式
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		Mediator(&rawUrlChannelReadOnly, 10, &TargetsChannelWriteOnly)
+	}()
+
+	// 如果未开启爬虫模式
+	if !runner.ScanOptions.Crawler {
+		for _, rawUrl := range runner.ScanOptions.Urls {
+			rawUrlChannel <- rawUrl
 		}
-	} else {
-		for _, target := range aliveTargets {
-			runner.Crawl(target.Request.URL.String(), TargetsChannel)
-		}
+		close(rawUrlChannel)
 	}
-	// 通知所有goroutine任务已完成
-	close(TargetsChannel)
+	// 等待所有线程结束
 	wg.Wait()
 	gologger.Info().Msgf("扫描结束")
+
 }
 
+// Monitor debug 模式，监控程序使用的资源状况
+// @param pid 进程PID
 func Monitor(pid int) {
 	p, err := process.NewProcess(int32(pid))
 	if err != nil {
@@ -90,66 +100,92 @@ func Monitor(pid int) {
 		cpuPercent, cp, memPercent, threadCount, gNum)
 }
 
-func AliveCheck(urls []string, maxGoroutines int) []*models.TargetStruct {
+// Mediator 充当中介者模式
+// @description：处理生产者提供的URL，供给消费者需要的target对象
+// @param urlsChan: 与生产者共有的chan，接收生产生产的URL
+// @param targetChan: 与消费者共有的chan，传送给消费者待消费的Target
+// @param maxThread: 最大处理线程数
+// @return nil
+func Mediator(urlsChan *<-chan string, maxThread int, targetChan *chan<- *models.TargetStruct) {
 	var wg sync.WaitGroup
-	aliveUrlTargets := make([]*models.TargetStruct, 0)
-	urlChan := make(chan string, maxGoroutines)
-
-	for i := 0; i < maxGoroutines; i++ {
+	//// maxThread 默认为10
+	//if maxThread < 1 {
+	//	maxThread = 10
+	//}
+	//// 开启 maxThread 个线程处理URL
+	//for range maxThread {
+	//	wg.Add(1)
+	//	go func() {
+	//		defer wg.Done()
+	//		rawUrl, ok := <-*urlsChan
+	//		// 如果上游chan通知已经关闭，并且遗留数据已经被处理完毕，关闭所有线程
+	//		if !ok {
+	//			return
+	//		}
+	//		isAlive, err, target := IsAlive(rawUrl)
+	//		if err == nil && isAlive == true {
+	//			*targetChan <- target
+	//		}
+	//	}()
+	//}
+	//wg.Wait()
+	// 通知下游已经没有Target会被生产出来了
+	//close(*targetChan)
+	for {
+		rawUrl, ok := <-*urlsChan
+		if !ok {
+			break
+		}
+		wg.Add(1)
 		go func() {
-			for url := range urlChan {
-				var resp *http.Response
-				var err error
-				// 3 time for retry
-				for range 3 {
-					resp, err = utils.CommonClient.Get(url)
-					if err != nil {
-						continue
-					}
-					break
-				}
-				if err != nil {
-					gologger.Error().Msgf("%s [Error]", url)
-					wg.Done()
-					continue
-				}
-				utils.CloseReader(resp.Body)
-				if resp.StatusCode >= 500 {
-					gologger.Error().Msgf("%s [%s]", url, resp.Status)
-					wg.Done()
-					continue
-				}
-				gologger.Info().Msgf("%s [%s]", url, resp.Status)
-				primitiveResp, err := utils.CommonClient.Get(url)
-				if err != nil || primitiveResp == nil {
-					wg.Done()
-					continue
-				}
-				respBody, err := io.ReadAll(primitiveResp.Body)
-				if err != nil {
-					gologger.Error().Msg("wcpvs.main:" + err.Error())
-					wg.Done()
-					continue
-				}
-				utils.CloseReader(primitiveResp.Body)
-				target := &models.TargetStruct{
-					Request:  primitiveResp.Request,
-					Response: primitiveResp,
-					RespBody: respBody,
-					Cache:    &models.CacheStruct{},
-				}
-				aliveUrlTargets = append(aliveUrlTargets, target)
-				wg.Done()
+			defer wg.Done()
+			isAlive, err, target := IsAlive(rawUrl)
+			if err == nil && isAlive == true {
+				*targetChan <- target
 			}
 		}()
 	}
-
-	for _, url := range urls {
-		wg.Add(1)
-		urlChan <- url
-	}
-
-	close(urlChan)
 	wg.Wait()
-	return aliveUrlTargets
+	// 通知下游已经没有Target会被生产出来了
+	close(*targetChan)
+}
+
+// IsAlive rawURL 存活检查
+// @param rawUrl URL 字符串
+// @return bool 是否存活
+// @return error 错误信息
+// @return *models.TargetStruct 实例
+func IsAlive(rawUrl string) (bool, error, *models.TargetStruct) {
+	// 重试3次
+	_, err := url.Parse(rawUrl)
+	if err != nil {
+		return false, err, nil
+	}
+	for range 3 {
+		req, err := http.NewRequest("GET", rawUrl, nil)
+		if err != nil {
+			continue
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0")
+		resp, err := utils.CommonClient.Do(req)
+		if err != nil {
+			continue
+		}
+		if resp.StatusCode >= 500 {
+			continue
+		}
+		byteRespBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			continue
+		}
+		utils.CloseReader(resp.Body)
+		target := &models.TargetStruct{
+			Request:  resp.Request,
+			Response: resp,
+			RespBody: byteRespBody,
+			Cache:    &models.CacheStruct{},
+		}
+		return true, nil, target
+	}
+	return false, nil, nil
 }
