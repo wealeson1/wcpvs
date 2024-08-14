@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/projectdiscovery/gologger"
 	"github.com/shirou/gopsutil/v3/process"
 	"github.com/wealeson1/wcpvs/internal/models"
@@ -25,13 +24,13 @@ func main() {
 	// 默认线程数
 	threadCount := runner.ScanOptions.Threads
 	var wg sync.WaitGroup
-	var TargetsChannel = make(chan *models.TargetStruct, 10)
+	var targetsChannel = make(chan *models.TargetStruct, 1000)
 	var rawUrlChannel = make(chan string, 1000)
 
 	// 启动资源监控goroutine
 	go func() {
 		for {
-			Monitor(os.Getpid())
+			Monitor(os.Getpid(), &targetsChannel, &rawUrlChannel)
 			time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
 		}
 	}()
@@ -42,7 +41,7 @@ func main() {
 		go func() {
 			defer wg.Done()
 			for {
-				target, ok := <-TargetsChannel
+				target, ok := <-targetsChannel
 				if !ok {
 					return
 				}
@@ -53,7 +52,7 @@ func main() {
 
 	// 强制转换为单向channel
 	rawUrlChannelReadOnly := (<-chan string)(rawUrlChannel)
-	TargetsChannelWriteOnly := (chan<- *models.TargetStruct)(TargetsChannel)
+	TargetsChannelWriteOnly := (chan<- *models.TargetStruct)(targetsChannel)
 
 	// 开启中介者模式
 	wg.Add(1)
@@ -77,7 +76,7 @@ func main() {
 
 // Monitor debug 模式，监控程序使用的资源状况
 // @param pid 进程PID
-func Monitor(pid int) {
+func Monitor[T any](pid int, targetsChannel *chan T, rawUrlChannel *chan string) {
 	p, err := process.NewProcess(int32(pid))
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create process: %v", err)
@@ -94,10 +93,12 @@ func Monitor(pid int) {
 		return
 	}
 	cp := cpuPercent / float64(runtime.NumCPU())
-	threadCount := pprof.Lookup("threadcreate").Count()
+	threadCount := pprof.Lookup("threadCreate").Count()
 	gNum := runtime.NumGoroutine()
-	fmt.Printf("CPU Usage: %.2f%% (%.2f%% per core), Memory Usage: %.2f%%, Thread Count: %d, Goroutine Count: %d\n",
+	gologger.Info().Msgf("CPU Usage: %.2f%% (%.2f%% per core), Memory Usage: %.2f%%, Thread Count: %d, Goroutine Count: %d\n",
 		cpuPercent, cp, memPercent, threadCount, gNum)
+
+	gologger.Info().Msgf("rawUrlChannel Length:[%d];TargetsChannel Length:[%d]\n", len(*rawUrlChannel), len(*targetsChannel))
 }
 
 // Mediator 充当中介者模式
@@ -176,11 +177,13 @@ func IsAlive(rawUrl string) (bool, error, *models.TargetStruct) {
 		}
 		if resp.StatusCode >= 500 {
 			gologger.Error().Msgf("%s [%d]", rawUrl, resp.StatusCode)
+			utils.CloseReader(resp.Body)
 			continue
 		}
 		byteRespBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			gologger.Error().Msgf("%s [%s]", rawUrl, err.Error())
+			utils.CloseReader(resp.Body)
 			continue
 		}
 		utils.CloseReader(resp.Body)
