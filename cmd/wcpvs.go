@@ -68,6 +68,28 @@ func main() {
 		}
 		close(rawUrlChannel)
 	}
+
+	if runner.ScanOptions.Crawler {
+		// 显式初始化crawler
+		runner.CrawlerInit()
+
+		for _, rawUrl := range runner.ScanOptions.Urls {
+			urls, err := runner.CrawlerInstance.Crawl(rawUrl)
+			if err != nil {
+				gologger.Fatal().Msgf("%s", err)
+				continue
+			}
+			urlsHandled, err := utils.RemoveDuplicatesAndParams(urls)
+			if err != nil {
+				gologger.Fatal().Msgf("%s", err)
+				continue
+			}
+			for _, uh := range urlsHandled {
+				rawUrlChannel <- uh
+			}
+		}
+		close(rawUrlChannel)
+	}
 	// 等待所有线程结束
 	wg.Wait()
 	gologger.Info().Msgf("扫描结束")

@@ -2,23 +2,27 @@ package runner
 
 import (
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/katana/pkg/engine/standard"
 	"github.com/projectdiscovery/katana/pkg/output"
 	"github.com/projectdiscovery/katana/pkg/types"
-	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
-	"io"
 	"math"
+	"sync"
 )
 
-var Results []output.Result
+var lock sync.Mutex
 
-func init() {
-	Results = make([]output.Result, 0)
+type Crawler struct {
+	Options *types.Options
 }
 
-func Crawl(url string, targets chan *models.TargetStruct) {
-	options := &types.Options{
+var CrawlerInstance *Crawler
+
+func CrawlerInit() {
+	CrawlerInstance = NewCrawler()
+}
+
+func NewCrawler() *Crawler {
+	options := types.Options{
 		MaxDepth:           ScanOptions.MaxDepth, // Maximum depth to crawl
 		FieldScope:         "rdn",                // Crawling Scope Field
 		BodyReadSize:       math.MaxInt,          // Maximum response size to read
@@ -32,63 +36,56 @@ func Crawl(url string, targets chan *models.TargetStruct) {
 		UseInstalledChrome: ScanOptions.SystemChrome,
 		Proxy:              ScanOptions.ProxyURL,
 		IgnoreQueryParams:  true,
-		OnResult: func(result output.Result) { // Callback function to execute for result
-			if result.HasResponse() {
-				req := result.Response.Resp.Request
-				target := &models.TargetStruct{
-					Request:  req,
-					Response: result.Response.Resp,
-					Cache:    &models.CacheStruct{},
-					RespBody: []byte(result.Response.Body),
-				}
-				targets <- target
-				return
-			}
-
-			resp, err := utils.CommonClient.Get(result.Request.RequestURL())
-			if err != nil {
-				gologger.Error().Msgf("%s\n", err)
-				return
-			}
-			defer resp.Body.Close()
-			respBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				gologger.Error().Msg(err.Error())
-				return
-			}
-
-			target := &models.TargetStruct{
-				Request:  resp.Request,
-				Response: resp,
-				Cache:    &models.CacheStruct{},
-				RespBody: respBody,
-			}
-			targets <- target
-		},
 	}
-	crawlerOptions, err := types.NewCrawlerOptions(options)
+
+	return &Crawler{
+		Options: &options,
+	}
+}
+
+// Crawl 只能单线程
+func (c *Crawler) Crawl(url string) ([]string, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	// 每次都要清空
+	urls := make([]string, 0)
+	crawlerOptions, err := types.NewCrawlerOptions(c.Options)
 	if err != nil {
 		gologger.Fatal().Msg(err.Error())
+		return nil, err
 	}
+
+	crawlerOptions.Options.OnResult = func(result output.Result) {
+		if result.Response.StatusCode < 500 {
+			url := result.Request.URL
+			urls = append(urls, url)
+		}
+	}
+
 	defer func(crawlerOptions *types.CrawlerOptions) {
 		err := crawlerOptions.Close()
 		if err != nil {
-
+			return
 		}
 	}(crawlerOptions)
-	crawler, err := standard.New(crawlerOptions)
+
+	crawler, err := utils.NewCrawler(crawlerOptions)
 	if err != nil {
 		gologger.Fatal().Msg(err.Error())
 	}
-	defer func(crawler *standard.Crawler) {
+
+	defer func(crawler *utils.Crawler) {
 		err := crawler.Close()
 		if err != nil {
 			gologger.Error().Msg(err.Error())
 		}
 	}(crawler)
+
 	var input = url
 	err = crawler.Crawl(input)
 	if err != nil {
 		gologger.Warning().Msgf("Could not crawl %s: %s", input, err.Error())
+		return nil, nil
 	}
+	return urls, nil
 }

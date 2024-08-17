@@ -6,6 +6,7 @@
         <function importPath="github.com/wealeson1/wcpvs/internal/logic/tecniques" name="GetResp" />
         <function importPath="github.com/wealeson1/wcpvs/pkg/utils" name="CloneRequest" />
         <function importPath="github.com/projectdiscovery/katana/pkg/engine/standard" name="New" />
+        <function importPath="github.com/wealeson1/wcpvs/pkg/utils" name="NewCrawler" />
       </functions>
       <methods>
         <method importPath="github.com/wealeson1/wcpvs/internal/logic" receiver="*FindCacheKeys" name="GetRespByDefHeader" />
