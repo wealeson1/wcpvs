@@ -15,11 +15,13 @@ var ParameterCP *PCPTechniques
 
 type PCPTechniques struct {
 	PcpParams map[string][]string
+	RWLock    sync.RWMutex
 }
 
 func NewParameterCP() *PCPTechniques {
 	return &PCPTechniques{
 		PcpParams: make(map[string][]string),
+		RWLock:    sync.RWMutex{},
 	}
 }
 
@@ -193,7 +195,10 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 						}
 						utils.CloseReader(shouldIsMissResp.Body)
 						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) && target.Response.StatusCode != shouldIsMissResp.StatusCode {
+							// Map 读写锁
+							p.RWLock.Lock()
 							p.PcpParams[target.Request.URL.String()] = append(p.PcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
+							p.RWLock.Unlock()
 							return
 						}
 					}
