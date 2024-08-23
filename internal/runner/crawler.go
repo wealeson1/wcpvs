@@ -1,36 +1,46 @@
 package runner
 
 import (
+	"sync"
+
 	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/katana/pkg/output"
 	"github.com/projectdiscovery/katana/pkg/types"
 	"github.com/wealeson1/wcpvs/pkg/utils"
-	"sync"
 )
 
-var lock sync.Mutex
+var (
+	lock            sync.Mutex
+	CrawlerInstance *Crawler
+	once            sync.Once
+	urlsPool        = sync.Pool{
+		New: func() interface{} {
+			return make([]string, 0, 100)
+		},
+	}
+)
 
 type Crawler struct {
 	Katana *utils.Crawler
 }
 
-var CrawlerInstance *Crawler
-
 func CrawlerInit() {
-	CrawlerInstance = NewCrawler()
+	once.Do(func() {
+		CrawlerInstance = NewCrawler()
+	})
 }
 
 func NewCrawler() *Crawler {
 	options := types.Options{
-		MaxDepth:           ScanOptions.MaxDepth, // Maximum depth to crawl
-		FieldScope:         "rdn",                // Crawling Scope Field
-		BodyReadSize:       10240,                // Maximum response size to read
-		Timeout:            ScanOptions.TimeOut,  // Timeout is the time to wait for request in seconds
-		Concurrency:        5,                    // Concurrency is the number of concurrent crawling goroutines
-		Parallelism:        10,                   // Parallelism is the number of urls processing goroutines
-		Delay:              0,                    // Delay is the delay between each crawl requests in seconds
-		RateLimit:          50,                   // Maximum requests to send per second
-		Strategy:           "depth-first",        // Visit strategy (depth-first, breadth-first)
+		MaxDepth:           ScanOptions.MaxDepth,
+		FieldScope:         "rdn",
+		BodyReadSize:       10240,
+		Timeout:            ScanOptions.TimeOut,
+		Concurrency:        5,
+		Parallelism:        10,
+		Delay:              0,
+		RateLimit:          50,
+		Strategy:           "depth-first",
 		Headless:           ScanOptions.Headless,
 		UseInstalledChrome: ScanOptions.SystemChrome,
 		Proxy:              ScanOptions.ProxyURL,
@@ -56,8 +66,10 @@ func NewCrawler() *Crawler {
 func (c *Crawler) Crawl(url string) ([]string, error) {
 	lock.Lock()
 	defer lock.Unlock()
-	// 每次都要清空
-	urls := make([]string, 0)
+
+	// 从 sync.Pool 获取 urls 切片
+	urls := urlsPool.Get().([]string)
+	defer urlsPool.Put(urls[:0]) // 归还切片到池中，并清空内容
 
 	c.Katana.Options.Options.OnResult = func(result output.Result) {
 		if result.Response.StatusCode < 500 {
@@ -65,6 +77,7 @@ func (c *Crawler) Crawl(url string) ([]string, error) {
 			urls = append(urls, url)
 		}
 	}
+
 	var input = url
 	err := c.Katana.Crawl(input)
 	if err != nil {
