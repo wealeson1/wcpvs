@@ -29,8 +29,9 @@ func main() {
 
 	// 启动资源监控goroutine
 	go func() {
+		hasGeneratedProfile := false
 		for {
-			Monitor(os.Getpid(), &targetsChannel, &rawUrlChannel)
+			Monitor(os.Getpid(), &targetsChannel, &rawUrlChannel, &hasGeneratedProfile)
 			time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
 		}
 	}()
@@ -98,7 +99,7 @@ func main() {
 
 // Monitor debug 模式，监控程序使用的资源状况
 // @param pid 进程PID
-func Monitor[T any](pid int, targetsChannel *chan T, rawUrlChannel *chan string) {
+func Monitor[T any](pid int, targetsChannel *chan T, rawUrlChannel *chan string, hasGeneratedProfile *bool) {
 	p, err := process.NewProcess(int32(pid))
 	if err != nil {
 		gologger.Fatal().Msgf("Could not create process: %v", err)
@@ -114,6 +115,21 @@ func Monitor[T any](pid int, targetsChannel *chan T, rawUrlChannel *chan string)
 		gologger.Fatal().Msgf("Could not get memory percent: %v", err)
 		return
 	}
+	if memPercent > 0.7 && !(*hasGeneratedProfile) {
+		gologger.Info().Msg("Memory usage is over 70%, generating memory profile...")
+		// 指定内存剖析文件的路径
+		profileFile, err := os.Create("./memory.pprof")
+		if err != nil {
+			gologger.Error().Msgf("Could not create memory profile file: %v", err)
+			return
+		}
+		defer profileFile.Close()
+		if err := pprof.Lookup("heap").WriteTo(profileFile, 0); err != nil {
+			gologger.Error().Msgf("Failed to write memory profile: %v", err)
+		}
+		*hasGeneratedProfile = true
+	}
+
 	cp := cpuPercent / float64(runtime.NumCPU())
 	threadCount := pprof.Lookup("threadcreate").Count()
 	gNum := runtime.NumGoroutine()

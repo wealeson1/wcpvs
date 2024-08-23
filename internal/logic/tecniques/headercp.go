@@ -201,7 +201,6 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 							return
 						}
 					}
-
 				}
 				if utils.IsCacheMiss(target, &tmpResp.Header) {
 					for range 3 {
@@ -214,7 +213,9 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 							continue
 						}
 						if utils.IsCacheHit(target, &shouldIsHitResp.Header) && target.Response.StatusCode != shouldIsHitResp.StatusCode {
+							h.RWLock.Lock()
 							h.HcpParams[target.Request.URL.String()] = append(h.HcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
+							h.RWLock.Unlock()
 							//gologger.Info().Msgf("The target %s has a non-cache key request header exposed in the response body, potentially indicating a cache poisoning vulnerability. %s", target.Request.URL, pvMap)
 							return
 						}
