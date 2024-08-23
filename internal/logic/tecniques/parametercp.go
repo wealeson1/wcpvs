@@ -6,6 +6,7 @@ import (
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"golang.org/x/exp/maps"
 	"io"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -138,9 +139,19 @@ func (p *PCPTechniques) Scan(target *models.TargetStruct) {
 
 func (p *PCPTechniques) findVulnerabilityByAnyGet(target *models.TargetStruct) (bool, error) {
 	pvMap := map[string]string{utils.RandomString(5): utils.RandomString(5)}
-	resp, err := GetResp(target, GET, pvMap)
+	var resp *http.Response
+	var err error
+	for range 3 {
+		resp, err = GetResp(target, GET, pvMap)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return false, err
+	}
+	if resp == nil {
+		return false, nil
 	}
 	defer utils.CloseReader(resp.Body)
 	respBody, err := io.ReadAll(resp.Body)
@@ -162,8 +173,19 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 	for _, param := range params {
 		pvMap[param] = utils.RandomString(7)
 	}
-	resp, err := GetResp(target, GET, pvMap)
+	var resp *http.Response
+	var err error
+	for range 3 {
+		resp, err = GetResp(target, GET, pvMap)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
+		gologger.Error().Msg(err.Error())
+		return
+	}
+	if resp == nil {
 		return
 	}
 	defer utils.CloseReader(resp.Body)

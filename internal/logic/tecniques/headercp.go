@@ -6,6 +6,7 @@ import (
 	"github.com/wealeson1/wcpvs/pkg/utils"
 	"golang.org/x/exp/maps"
 	"io"
+	"net/http"
 	"strings"
 	"sync"
 )
@@ -161,8 +162,16 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 	for _, header := range headers {
 		pvMap[header] = utils.RandomString(5)
 	}
-	resp, err := GetResp(target, HEADER, pvMap)
-	if err != nil {
+	var resp *http.Response
+	var err error
+	for range 3 {
+		resp, err = GetResp(target, HEADER, pvMap)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil || resp == nil {
+		gologger.Error().Msg("Error in HCPTechniques.findVulnerability func")
 		return
 	}
 	defer utils.CloseReader(resp.Body)
