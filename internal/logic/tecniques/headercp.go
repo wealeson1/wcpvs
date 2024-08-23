@@ -12,6 +12,7 @@ import (
 
 type HeaderCP struct {
 	HcpParams map[string][]string
+	RWLock    sync.RWMutex
 }
 
 var HCPTechniques *HeaderCP
@@ -23,6 +24,7 @@ func init() {
 func NewHeaderCP() *HeaderCP {
 	return &HeaderCP{
 		HcpParams: make(map[string][]string),
+		RWLock:    sync.RWMutex{},
 	}
 }
 
@@ -193,7 +195,9 @@ func (h *HeaderCP) findVulnerability(target *models.TargetStruct, headers []stri
 							continue
 						}
 						if utils.IsCacheMiss(target, &shouldIsMissResp.Header) && target.Response.StatusCode != shouldIsMissResp.StatusCode {
+							h.RWLock.Lock()
 							h.HcpParams[target.Request.URL.String()] = append(h.HcpParams[target.Request.URL.String()], maps.Keys(pvMap)...)
+							h.RWLock.Unlock()
 							return
 						}
 					}
