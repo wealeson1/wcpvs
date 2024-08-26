@@ -120,7 +120,10 @@ func ParseOptions() *Options {
 
 	//flagSet.StringVarP(&cfgFile, "config", "c", "", "config file to use")
 	_ = flagSet.Parse()
-	transport := &http.Transport{}
+	transport := &http.Transport{MaxResponseHeaderBytes: 10240}
+
+	// 错误重试 默认三次
+
 	if options.InputFile != "" {
 		urls, err := utils.ReadFileToSlice(options.InputFile)
 		if err != nil {

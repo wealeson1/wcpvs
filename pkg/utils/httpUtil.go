@@ -7,9 +7,31 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
-var CommonClient = http.DefaultClient
+type MyClient struct {
+	*http.Client
+}
+
+var CommonClient = MyClient{http.DefaultClient}
+
+func (c *MyClient) Do(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	for i := 0; i < 3; i++ {
+		resp, err = c.Client.Do(req)
+		if err == nil {
+			return resp, nil
+		}
+		// Optional: add a delay between retries
+		time.Sleep(time.Second * time.Duration(i+1))
+		//fmt.Printf("Retrying request... Attempt #%d\n", i+2)
+	}
+
+	return resp, err
+}
 
 func init() {
 }

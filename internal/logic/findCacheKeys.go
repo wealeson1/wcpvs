@@ -101,10 +101,20 @@ func (f *FindCacheKeys) FindCacheKeyByAnyGet(target *models.TargetStruct) (bool,
 	}
 	paramName := utils.RandomString(5)
 	paramValue := utils.RandomString(5)
-	tmpResp, err := f.GetRespByDefGetParams(tmpRequest, paramName, paramValue)
-	if err != nil {
-		gologger.Error().Msg("FindCacheKeyByAnyGet:" + err.Error())
+	var tmpResp *http.Response
+	var err2 error
+	for range 3 {
+		tmpResp, err2 = f.GetRespByDefGetParams(tmpRequest, paramName, paramValue)
+		if err2 == nil {
+			break
+		}
+	}
+	if err2 != nil {
+		gologger.Error().Msg(err2.Error())
 		return false, err
+	}
+	if tmpResp == nil {
+		return false, nil
 	}
 	utils.CloseReader(tmpResp.Body)
 	if utils.IsCacheMiss(target, &tmpResp.Header) {
