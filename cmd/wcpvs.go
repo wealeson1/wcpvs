@@ -28,13 +28,13 @@ func main() {
 	var rawUrlChannel = make(chan string, 1000)
 
 	// 启动资源监控goroutine
-	go func() {
-		hasGeneratedProfile := false
-		for {
-			Monitor(os.Getpid(), &targetsChannel, &rawUrlChannel, &hasGeneratedProfile)
-			time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
-		}
-	}()
+	//go func() {
+	//	hasGeneratedProfile := false
+	//	for {
+	//		Monitor(os.Getpid(), &targetsChannel, &rawUrlChannel, &hasGeneratedProfile)
+	//		time.Sleep(1 * time.Second) // 每隔10秒打印一次监控信息
+	//	}
+	//}()
 
 	// 启动工作goroutine
 	for range threadCount {
