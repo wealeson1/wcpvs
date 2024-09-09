@@ -140,6 +140,8 @@ var CustomHeaders = []string{
 	"eo-cache-status",
 	"cache-status",
 	"ec-cdn-status",
+	"x-vercel-cache", // Vercel
+	"cdn-cache",      // Bunny CDN
 }
 
 // HasCustomHeaders 检查响应中是否存在 customHeaders 中的响应头
