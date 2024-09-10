@@ -110,7 +110,39 @@ func CacheMissByExpires(target *models.TargetStruct, headers *http.Header) bool 
 	return false
 }
 
-var CustomHeaders = []string{"cache-control", "pragma", "x-cache-lookup", "x-cache", "cf-cache-status", "x-drupal-cache", "x-varnish-cache", "akamai-cache-status", "server-timing", "x-iinfo", "x-nc", "x-hs-cf-cache-status", "x-proxy-cache", "x-cache-hits", "x-cache-status", "x-cache-info", "x-rack-cache", "cdn_cache_status", "x-akamai-cache", "x-akamai-cache-remote", "x-cache-remote", "X-Response-Cache", "age", "x-cache-webcdn", "expires", "date", "eo-cache-status", "cache-status", "ec-cdn-status"}
+var CustomHeaders = []string{
+	"cache-control",
+	"pragma",
+	"x-cache-lookup",
+	"x-cache",
+	"cf-cache-status",
+	"x-drupal-cache",
+	"x-varnish-cache",
+	"akamai-cache-status",
+	"server-timing",
+	"x-iinfo",
+	"x-nc",
+	"x-hs-cf-cache-status",
+	"x-proxy-cache",
+	"x-cache-hits",
+	"x-cache-status",
+	"x-cache-info",
+	"x-rack-cache",
+	"cdn_cache_status",
+	"x-akamai-cache",
+	"x-akamai-cache-remote",
+	"x-cache-remote",
+	"X-Response-Cache",
+	"age",
+	"x-cache-webcdn",
+	"expires",
+	"date",
+	"eo-cache-status",
+	"cache-status",
+	"ec-cdn-status",
+	"x-vercel-cache", // Vercel
+	"cdn-cache",      // Bunny CDN
+}
 
 // HasCustomHeaders 检查响应中是否存在 customHeaders 中的响应头
 // respHeaders 必须是两个请求的后一个响应的响应头
