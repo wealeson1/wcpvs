@@ -148,9 +148,18 @@ var CustomHeaders = []string{
 // respHeaders 必须是两个请求的后一个响应的响应头
 func HasCustomHeaders(resp *http.Response) (bool, map[string][]string) {
 	hasCustomHeaders := make(map[string][]string)
+	// for header, values := range resp.Header {
+	// 	if slices.Contains(CustomHeaders, strings.ToLower(header)) {
+	// 		hasCustomHeaders[header] = values
+	// 	}
+	// }
 	for header, values := range resp.Header {
-		if slices.Contains(CustomHeaders, strings.ToLower(header)) {
-			hasCustomHeaders[header] = values
+		lowerCaseHeader := strings.ToLower(header)
+		for _, customHeader := range CustomHeaders {
+			if lowerCaseHeader == strings.ToLower(customHeader) {
+				hasCustomHeaders[header] = values
+				break
+			}
 		}
 	}
 	if len(hasCustomHeaders) == 0 {
