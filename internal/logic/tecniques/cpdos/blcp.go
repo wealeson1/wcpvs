@@ -37,15 +37,11 @@ func (b *Blcp) Scan(target *models.TargetStruct) {
 		if err != nil {
 			return
 		}
+		utils.CloseReader(tmpResp.Body)
 		if tmpResp.StatusCode != target.Response.StatusCode {
-			//tmpTarget := &models.TargetStruct{
-			//	Response: tmpResp,
-			//	Cache:    &models.CacheStruct{},
-			//}
-			//hasCache, _ := logic.Checker.IsCacheAvailable(tmpTarget)
 			hasCustomHeaders, _ := utils.HasCustomHeaders(tmpResp)
 			if !hasCustomHeaders {
-				return
+				continue
 			}
 			for range 3 {
 				tmpReq2, err := utils.CloneRequest(tmpResp.Request)
@@ -56,7 +52,10 @@ func (b *Blcp) Scan(target *models.TargetStruct) {
 				if err != nil {
 					continue
 				}
-				if utils.IsCacheHit(target, &tmpResp2.Header) && target.Response.StatusCode != tmpResp2.StatusCode {
+				isHit := utils.IsCacheHit(target, &tmpResp2.Header)
+				statusDiff := target.Response.StatusCode != tmpResp2.StatusCode
+				utils.CloseReader(tmpResp2.Body)
+				if isHit && statusDiff {
 					gologger.Info().Msgf("Target %s has a CPDOS vulnerability, detected using a request with a blacklisted security scanner's User-Agent: %s", target.Request.URL, v)
 					return
 				}

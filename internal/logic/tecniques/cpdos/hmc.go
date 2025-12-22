@@ -1,11 +1,15 @@
 package cpdos
 
 import (
+	"fmt"
+	"io"
+	"time"
+
 	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
+	"github.com/wealeson1/wcpvs/pkg/output"
 	"github.com/wealeson1/wcpvs/pkg/utils"
-	"time"
 )
 
 var HMCTecniques *Hmc
@@ -69,7 +73,12 @@ func (h *Hmc) Scan(target *models.TargetStruct) {
 						continue
 					}
 					if utils.IsCacheHit(target, &resp2.Header) && target.Response.StatusCode != resp2.StatusCode {
-						gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using Hmc. %s:%s.", target.Request.URL, header, value)
+						resp2Body, _ := io.ReadAll(resp2.Body)
+						utils.CloseReader(resp2.Body)
+						// 输出详细报告
+						payloadInfo := fmt.Sprintf("Meta-character in header: %s=%s", header, value)
+						attackVector := fmt.Sprintf("Meta-character %s in header %s causes error", value, header)
+						ReportCPDoSVulnerability(target, output.VulnTypeCPDoSHMC, attackVector, resp2, resp2Body, tmpReq1, payloadInfo)
 						return
 					}
 					utils.CloseReader(resp2.Body)

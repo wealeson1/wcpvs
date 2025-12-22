@@ -1,11 +1,12 @@
 package logic
 
 import (
-	"fmt"
+	"strings"
+	"time"
+
 	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/utils"
-	"time"
 )
 
 type CacheChecker struct{}
@@ -19,7 +20,7 @@ func NewCacheChecker() *CacheChecker {
 	return &CacheChecker{}
 }
 
-// Check 执行检查缓存的逻辑
+// Check 执行检查缓存的逻辑（增强版：自适应等待时间）
 func (c *CacheChecker) Check(target *models.TargetStruct) error {
 	isCache, orderCustomHeaders := c.IsCacheAvailable(target)
 	if !isCache {
@@ -27,27 +28,44 @@ func (c *CacheChecker) Check(target *models.TargetStruct) error {
 		return nil
 	}
 	target.Cache.OrderCustomHeaders = orderCustomHeaders
-	resp := target.Response
-	// 判断是否away miss
-	if utils.IsCacheMiss(target, &resp.Header) {
-		for range 3 {
-			tmpReq, err := utils.CloneRequest(resp.Request)
+	initialResp := target.Response
+
+	// 判断是否always miss
+	if utils.IsCacheMiss(target, &initialResp.Header) {
+		// 自适应等待时间
+		waitTime := c.calculateWaitTime(target)
+		gologger.Debug().Msgf("Waiting %v for cache to populate", waitTime)
+		time.Sleep(waitTime)
+
+		for i := 0; i < 3; i++ {
+			tmpReq, err := utils.CloneRequest(initialResp.Request)
 			if err != nil {
-				return err
+				gologger.Error().Msgf("Failed to clone request: %v", err)
+				continue
 			}
-			time.Sleep(500 * time.Millisecond)
-			resp, err := utils.CommonClient.Do(tmpReq)
+
+			retryResp, err := utils.CommonClient.Do(tmpReq)
 			if err != nil {
-				return err
+				gologger.Error().Msgf("Request failed on retry %d: %v", i+1, err)
+				time.Sleep(c.calculateRetryInterval(i))
+				continue
 			}
-			if resp == nil {
-				return fmt.Errorf("second response is nil")
+			if retryResp == nil {
+				gologger.Warning().Msg("Received nil response")
+				continue
 			}
-			utils.CloseReader(resp.Body)
-			if utils.IsCacheHit(target, &resp.Header) {
+
+			// 立即关闭Body，不要用defer（defer在函数返回时才执行）
+			isHit := utils.IsCacheHit(target, &retryResp.Header)
+			utils.CloseReader(retryResp.Body)
+
+			if isHit {
 				target.Cache.NoCache = false
+				gologger.Debug().Msgf("Cache hit confirmed on retry %d", i+1)
 				return nil
 			}
+
+			time.Sleep(c.calculateRetryInterval(i))
 		}
 		gologger.Info().Msgf("The target %s has a caching mechanism but consistently results in cache misses.", target.Request.URL)
 		target.Cache.NoCache = true
@@ -55,6 +73,94 @@ func (c *CacheChecker) Check(target *models.TargetStruct) error {
 	}
 	target.Cache.NoCache = false
 	return nil
+}
+
+// calculateWaitTime 根据CDN类型和响应特征计算合适的等待时间
+func (c *CacheChecker) calculateWaitTime(target *models.TargetStruct) time.Duration {
+	// 检测CDN类型
+	cdnType := c.detectCDNType(target)
+
+	switch cdnType {
+	case "cloudflare", "fastly", "cloudfront":
+		// 快速CDN：100-300ms
+		return 200 * time.Millisecond
+	case "akamai", "cdn77":
+		// 中速CDN：500ms-1s
+		return 800 * time.Millisecond
+	case "custom", "origin":
+		// 自建缓存或源站缓存：1-2s
+		return 1500 * time.Millisecond
+	default:
+		// 未知类型：使用默认1s
+		return 1 * time.Second
+	}
+}
+
+// calculateRetryInterval 计算重试间隔（指数退避）
+func (c *CacheChecker) calculateRetryInterval(attempt int) time.Duration {
+	baseInterval := 300 * time.Millisecond
+	return time.Duration(baseInterval.Milliseconds()*(1<<uint(attempt))) * time.Millisecond
+}
+
+// detectCDNType 检测CDN类型
+func (c *CacheChecker) detectCDNType(target *models.TargetStruct) string {
+	headers := target.Response.Header
+
+	// Cloudflare
+	if headers.Get("CF-Cache-Status") != "" || headers.Get("CF-Ray") != "" {
+		return "cloudflare"
+	}
+
+	// Fastly
+	if headers.Get("X-Fastly-Request-ID") != "" || headers.Get("Fastly-Debug-Digest") != "" {
+		return "fastly"
+	}
+
+	// Akamai
+	if headers.Get("X-Akamai-Transformed") != "" || headers.Get("Akamai-Cache-Status") != "" {
+		return "akamai"
+	}
+
+	// CloudFront (AWS)
+	if headers.Get("X-Amz-Cf-Id") != "" || headers.Get("X-Amz-Cf-Pop") != "" {
+		return "cloudfront"
+	}
+
+	// 阿里云CDN
+	if headers.Get("X-Iinfo") != "" || headers.Get("Ali-Swift-Global-Savetime") != "" {
+		return "alicdn"
+	}
+
+	// CDN77
+	if headers.Get("X-CDN") == "CDN77" {
+		return "cdn77"
+	}
+
+	// Varnish
+	if headers.Get("Via") != "" && strings.Contains(strings.ToLower(headers.Get("Via")), "varnish") {
+		return "varnish"
+	}
+
+	// Nginx缓存
+	if headers.Get("X-Proxy-Cache") != "" || headers.Get("X-Cache-Status") != "" {
+		return "nginx"
+	}
+
+	// 检查Server头
+	server := strings.ToLower(headers.Get("Server"))
+	if strings.Contains(server, "cloudflare") {
+		return "cloudflare"
+	}
+	if strings.Contains(server, "akamaighost") {
+		return "akamai"
+	}
+
+	// 如果有Age头，可能是origin缓存
+	if headers.Get("Age") != "" {
+		return "origin"
+	}
+
+	return "unknown"
 }
 
 // IsCacheAvailable 检查目标是否存在缓存机制

@@ -3,14 +3,15 @@ package tecniques
 import (
 	"errors"
 	"fmt"
-	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal/models"
-	"github.com/wealeson1/wcpvs/pkg/utils"
 	"io"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/projectdiscovery/gologger"
+	"github.com/wealeson1/wcpvs/internal/models"
+	"github.com/wealeson1/wcpvs/pkg/utils"
 )
 
 const (
@@ -45,9 +46,14 @@ func GetRespNoPayload(target *models.TargetStruct, position int, pvMap map[strin
 			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
 		} else if target.Cache.CKisCookie {
 			randomValue := utils.RandomString(5)
-			for _, v := range tmpReq.Cookies() {
+			// 先保存原有的Cookies，再删除Header，再重新添加
+			originalCookies := tmpReq.Cookies()
+			tmpReq.Header.Del("Cookie")
+			for _, v := range originalCookies {
 				if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
-					v.Value = randomValue
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: randomValue})
+				} else {
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: v.Value})
 				}
 			}
 		} else if target.Cache.CKIsGet {
@@ -87,9 +93,14 @@ func GetRespNoPayload(target *models.TargetStruct, position int, pvMap map[strin
 			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
 		} else if target.Cache.CKisCookie {
 			randomValue := utils.RandomString(5)
-			for _, v := range tmpReq.Cookies() {
+			// 先保存原有的Cookies，再删除Header，再重新添加
+			originalCookies := tmpReq.Cookies()
+			tmpReq.Header.Del("Cookie")
+			for _, v := range originalCookies {
 				if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
-					v.Value = randomValue
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: randomValue})
+				} else {
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: v.Value})
 				}
 			}
 		} else {
@@ -160,9 +171,14 @@ func GetResp(target *models.TargetStruct, position int, pvMap map[string]string)
 			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
 		} else if target.Cache.CKisCookie {
 			randomValue := utils.RandomString(5)
-			for _, v := range tmpReq.Cookies() {
+			// 先保存原有的Cookies，再删除Header，再重新添加
+			originalCookies := tmpReq.Cookies()
+			tmpReq.Header.Del("Cookie")
+			for _, v := range originalCookies {
 				if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
-					v.Value = randomValue
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: randomValue})
+				} else {
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: v.Value})
 				}
 			}
 		} else if target.Cache.CKIsGet {
@@ -202,9 +218,14 @@ func GetResp(target *models.TargetStruct, position int, pvMap map[string]string)
 			tmpReq.Header.Set(target.Cache.HeaderCacheKeys[0], randomValue)
 		} else if target.Cache.CKisCookie {
 			randomValue := utils.RandomString(5)
-			for _, v := range tmpReq.Cookies() {
+			// 先保存原有的Cookies，再删除Header，再重新添加
+			originalCookies := tmpReq.Cookies()
+			tmpReq.Header.Del("Cookie")
+			for _, v := range originalCookies {
 				if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
-					v.Value = randomValue
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: randomValue})
+				} else {
+					tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: v.Value})
 				}
 			}
 		} else {
@@ -285,9 +306,14 @@ func GetSourceRequestWithCacheKey(target *models.TargetStruct) (req *http.Reques
 
 	if target.Cache.CKisCookie {
 		randomValue := utils.RandomString(5)
-		for _, v := range tmpReq.Cookies() {
+		// 先保存原有的Cookies，再删除Header，再重新添加
+		originalCookies := tmpReq.Cookies()
+		tmpReq.Header.Del("Cookie")
+		for _, v := range originalCookies {
 			if strings.EqualFold(v.Name, target.Cache.CookieCacheKeys[0]) {
-				v.Value = randomValue
+				tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: randomValue})
+			} else {
+				tmpReq.AddCookie(&http.Cookie{Name: v.Name, Value: v.Value})
 			}
 		}
 		return tmpReq, nil

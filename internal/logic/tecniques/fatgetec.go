@@ -1,10 +1,14 @@
 package tecniques
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/models"
+	"github.com/wealeson1/wcpvs/pkg/output"
 	"github.com/wealeson1/wcpvs/pkg/utils"
-	"io"
 )
 
 type FatGet struct {
@@ -148,15 +152,70 @@ func (f *FatGet) fatGetDosScan(target *models.TargetStruct) {
 				continue
 			}
 			tmpReq = utils.AddParam(tmpReq, "POST", param, value)
-			resp, err := utils.CommonClient.Do(tmpReq)
+			resp2, err := utils.CommonClient.Do(tmpReq)
 			if err != nil {
 				gologger.Error().Msg(err.Error())
 				continue
 			}
-			if utils.IsCacheHit(target, &resp.Header) {
-				gologger.Info().Msgf("Target %s has a cpdos vulnerability,Tecnique is FATGET", target.Request.URL)
+			isHit := utils.IsCacheHit(target, &resp2.Header)
+			resp2Body, _ := io.ReadAll(resp2.Body)
+			utils.CloseReader(resp2.Body)
+			if isHit {
+				// 输出详细报告
+				f.reportVulnerability(target, param, value, resp2, resp2Body)
 				return
 			}
 		}
 	}
+}
+
+// reportVulnerability 输出FatGet漏洞的详细报告
+func (f *FatGet) reportVulnerability(target *models.TargetStruct, param, value string, 
+	resp *http.Response, respBody []byte) {
+	
+	// 构建请求
+	testReq, err := GetSourceRequestWithCacheKey(target)
+	if err != nil || testReq == nil {
+		// Fallback: 使用原始请求
+		testReq, _ = utils.CloneRequest(target.Request)
+	}
+	if testReq != nil {
+		testReq = utils.AddParam(testReq, "POST", param, value)
+	}
+	
+	// 提取缓存键
+	cacheKeys := []string{}
+	if target.Cache.CKIsGet {
+		cacheKeys = append(cacheKeys, target.Cache.GetCacheKeys...)
+	}
+	if target.Cache.CKIsHeader {
+		cacheKeys = append(cacheKeys, target.Cache.HeaderCacheKeys...)
+	}
+	
+	// 格式化请求和响应
+	reqStr := output.FormatRequestSimple(testReq, fmt.Sprintf("POST body: %s=%s", param, value))
+	bodySnippet := output.ExtractBodySnippet(respBody, 300)
+	respStr := output.FormatResponse(resp, bodySnippet, "")
+	
+	// 创建漏洞报告
+	report := &output.VulnerabilityReport{
+		Severity:     output.SeverityCritical,
+		Type:         output.VulnTypeFatGet,
+		Target:       target.Request.URL.String(),
+		CDN:          utils.DetectCDNType(target.Response),
+		CacheKeys:    cacheKeys,
+		AttackVector: "POST body with GET method causes abnormal cached response",
+		Request:      reqStr,
+		Response:     respStr,
+		Impact:       "HTTP method override allows caching error responses - affects all users (CPDoS)",
+		Persistent:   true,
+		Remediation: []string{
+			"Strictly enforce HTTP method validation",
+			"Do not cache responses with unexpected request bodies",
+			"Implement proper POST body handling",
+			"Add Content-Type validation at CDN level",
+		},
+	}
+	
+	report.Print()
 }

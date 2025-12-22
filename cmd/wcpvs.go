@@ -46,7 +46,15 @@ func main() {
 				if !ok {
 					return
 				}
-				runner.Run(target)
+				// 添加panic恢复机制，防止单个扫描失败导致goroutine退出
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							gologger.Error().Msgf("Panic recovered in runner.Run for %s: %v", target.Request.URL, r)
+						}
+					}()
+					runner.Run(target)
+				}()
 			}
 		}()
 	}
@@ -77,12 +85,12 @@ func main() {
 		for _, rawUrl := range runner.ScanOptions.Urls {
 			urls, err := runner.CrawlerInstance.Crawl(rawUrl)
 			if err != nil {
-				gologger.Fatal().Msgf("%s", err)
+				gologger.Error().Msgf("Failed to crawl %s: %s", rawUrl, err)
 				continue
 			}
 			urlsHandled, err := utils.RemoveDuplicatesAndParams(urls)
 			if err != nil {
-				gologger.Fatal().Msgf("%s", err)
+				gologger.Error().Msgf("Failed to process URLs from %s: %s", rawUrl, err)
 				continue
 			}
 			for _, uh := range urlsHandled {
@@ -215,21 +223,24 @@ func IsAlive(rawUrl string) (bool, error, *models.TargetStruct) {
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0")
 		resp, err := utils.CommonClient.Do(req)
 		if err != nil {
+			// 即使有错误，resp也可能不为nil，需要关闭
+			if resp != nil {
+				utils.CloseReader(resp.Body)
+			}
 			gologger.Error().Msgf("%s [%s]", rawUrl, err.Error())
 			continue
 		}
 		if resp.StatusCode >= 500 {
-			gologger.Error().Msgf("%s [%d]", rawUrl, resp.StatusCode)
 			utils.CloseReader(resp.Body)
+			gologger.Error().Msgf("%s [%d]", rawUrl, resp.StatusCode)
 			continue
 		}
 		byteRespBody, err := io.ReadAll(resp.Body)
+		utils.CloseReader(resp.Body) // 立即关闭
 		if err != nil {
 			gologger.Error().Msgf("%s [%s]", rawUrl, err.Error())
-			utils.CloseReader(resp.Body)
 			continue
 		}
-		utils.CloseReader(resp.Body)
 		target := &models.TargetStruct{
 			Request:  resp.Request,
 			Response: resp,

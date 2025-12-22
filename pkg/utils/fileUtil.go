@@ -24,10 +24,9 @@ func ReadFileToSlice(path string) (result []string, err error) {
 	return result, nil
 }
 
-// CloseReader 关闭Read，如果存在错误使程序崩溃
+// CloseReader 关闭Reader，忽略错误（因为在大多数情况下关闭错误是良性的）
 func CloseReader(c io.ReadCloser) {
-	err := c.Close()
-	if err != nil {
-		panic(err)
+	if c != nil {
+		_ = c.Close() // 忽略错误，避免程序崩溃
 	}
 }

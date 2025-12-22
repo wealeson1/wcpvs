@@ -32,21 +32,31 @@ func Run(target *models.TargetStruct) {
 		return
 	}
 	scans := []Scan{
+		// CPDoS Techniques (8)
 		cpdos.HHOTecnique,
 		cpdos.HMOTecniques,
 		cpdos.BlcpTecnique,
-		tecniques.HCPTechniques,
-		tecniques.ParameterCP,
-		tecniques.CCPTechniques,
 		cpdos.LRDTecniques,
 		cpdos.PncTecnique,
 		cpdos.HhcnTecnique,
 		cpdos.UPCTecnique,
-		cpdos.HMCTecniques}
+		cpdos.HMCTecniques,
+		// Traditional Cache Poisoning (3)
+		tecniques.HCPTechniques,
+		tecniques.ParameterCP,
+		tecniques.CCPTechniques,
+		// Advanced Techniques (5)
+		tecniques.WCDTechniques,
+		tecniques.HostHeaderCPTechniques,
+		tecniques.SchemeManipTechniques,
+		tecniques.NormalizationTechniques,
+		tecniques.CacheProbingTechniques,
+	}
 
 	var wg sync.WaitGroup
 	for _, scan := range scans {
 		wg.Add(1)
+		scan := scan  // 创建局部副本，避免闭包捕获循环变量
 		go func() {
 			defer wg.Done()
 			scan.Scan(target)

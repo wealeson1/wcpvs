@@ -76,7 +76,10 @@ func (p *Pnc) Scan(target *models.TargetStruct) {
 				gologger.Error().Msgf("Target:%s,Pnc.scan %s", target.Request.URL, err.Error())
 				continue
 			}
-			if utils.IsCacheHit(target, &resp2.Header) && target.Response.StatusCode != resp2.StatusCode {
+			isHit := utils.IsCacheHit(target, &resp2.Header)
+			statusDiff := target.Response.StatusCode != resp2.StatusCode
+			resp2.Body.Close()
+			if isHit && statusDiff {
 				gologger.Info().Msgf("Target %s has a cpdos vulnerability,tecnique is PNC", target.Request.URL)
 				return
 			}

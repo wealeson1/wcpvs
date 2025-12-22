@@ -27,7 +27,7 @@ func (r *LRD) Scan(target *models.TargetStruct) {
 		if !target.Cache.CKIsAnyGet {
 			tmpReq, err := utils.CloneRequest(target.Request)
 			if err != nil {
-				gologger.Fatal().Msgf("%s\n", err)
+				gologger.Error().Msgf("Failed to clone request: %s", err)
 				return
 			}
 			randomParam := utils.RandomString(5)
@@ -44,6 +44,7 @@ func (r *LRD) Scan(target *models.TargetStruct) {
 				return
 			}
 			location := resp.Header.Get("Location")
+			utils.CloseReader(resp.Body)
 			if strings.Contains(location, randomParam) {
 				gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using RDD.", target.Request.URL)
 				return

@@ -70,7 +70,10 @@ func (h *Hhcn) Scan(target *models.TargetStruct) {
 			if err != nil {
 				continue
 			}
-			if utils.IsCacheHit(target, &resp3.Header) && target.Response.StatusCode != resp3.StatusCode {
+			isHit := utils.IsCacheHit(target, &resp3.Header)
+			statusDiff := target.Response.StatusCode != resp3.StatusCode
+			resp3.Body.Close()
+			if isHit && statusDiff {
 				gologger.Info().Msgf("Target %s has a cache-poisoning vulnerability by Host header case normalization", target.Request.URL)
 				return
 			}

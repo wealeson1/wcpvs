@@ -1,10 +1,15 @@
 package cpdos
 
 import (
+	"fmt"
+	"io"
+
 	"github.com/projectdiscovery/gologger"
 	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
+	"github.com/wealeson1/wcpvs/pkg/output"
 	"github.com/wealeson1/wcpvs/pkg/utils"
+	"golang.org/x/exp/maps"
 )
 
 type Hmo struct {
@@ -74,8 +79,15 @@ func (h *Hmo) Scan(target *models.TargetStruct) {
 					gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
 					continue
 				}
-				if utils.IsCacheHit(target, &resp2.Header) && target.Response.StatusCode != resp2.StatusCode {
-					gologger.Info().Msgf("The target %s has a CPDOS vulnerability, detected using HMO and %v.", target.Request.URL, payloadMap)
+				isHit := utils.IsCacheHit(target, &resp2.Header)
+				statusDiff := target.Response.StatusCode != resp2.StatusCode
+				resp2Body, _ := io.ReadAll(resp2.Body)
+				utils.CloseReader(resp2.Body)
+				if isHit && statusDiff {
+					// 输出详细报告
+					payloadInfo := fmt.Sprintf("Method Override Headers: %v", maps.Keys(payloadMap))
+					attackVector := fmt.Sprintf("HTTP Method Override via headers %v causes error", maps.Keys(payloadMap))
+					ReportCPDoSVulnerability(target, output.VulnTypeCPDoSHMO, attackVector, resp2, resp2Body, tmpReq1, payloadInfo)
 					return
 				}
 			}

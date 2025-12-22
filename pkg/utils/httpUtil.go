@@ -17,20 +17,29 @@ type MyClient struct {
 var CommonClient = MyClient{http.DefaultClient}
 
 func (c *MyClient) Do(req *http.Request) (*http.Response, error) {
-	var resp *http.Response
-	var err error
+	var lastErr error
 
 	for i := 0; i < 3; i++ {
-		resp, err = c.Client.Do(req)
+		// 每次重试使用原始请求（如果有Body需要克隆）
+		resp, err := c.Client.Do(req)
 		if err == nil {
 			return resp, nil
 		}
-		// Optional: add a delay between retries
-		time.Sleep(time.Second * time.Duration(i+1))
-		//fmt.Printf("Retrying request... Attempt #%d\n", i+2)
+		
+		// 关闭失败的响应（如果存在）
+		if resp != nil {
+			CloseReader(resp.Body)
+		}
+		
+		lastErr = err
+		
+		// 指数退避：1秒、2秒
+		if i < 2 {
+			time.Sleep(time.Second * time.Duration(1<<uint(i)))
+		}
 	}
 
-	return resp, err
+	return nil, lastErr
 }
 
 func init() {
@@ -84,7 +93,7 @@ func CloneRequest(r *http.Request) (*http.Request, error) {
 		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		// 添加了 GetBody 方法，这样克隆的请求就可以返回一个可以重复读取的正文。
 		req.GetBody = func() (io.ReadCloser, error) {
-			return req.Body, nil
+			return io.NopCloser(bytes.NewReader(bodyBytes)), nil
 		}
 		req.ContentLength = int64(len(bodyBytes))
 	}

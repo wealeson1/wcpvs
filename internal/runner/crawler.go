@@ -49,13 +49,14 @@ func NewCrawler() *Crawler {
 
 	crawlerOptions, err := types.NewCrawlerOptions(&options)
 	if err != nil {
-		gologger.Fatal().Msg(err.Error())
-		panic(err)
+		gologger.Error().Msg(err.Error())
+		return nil
 	}
 
 	crawler, err := utils.NewCrawler(crawlerOptions)
 	if err != nil {
-		gologger.Fatal().Msg(err.Error())
+		gologger.Error().Msg(err.Error())
+		return nil
 	}
 	return &Crawler{
 		Katana: crawler,
@@ -69,7 +70,7 @@ func (c *Crawler) Crawl(url string) ([]string, error) {
 
 	// 从 sync.Pool 获取 urls 切片
 	urls := urlsPool.Get().([]string)
-	defer urlsPool.Put(urls[:0]) // 归还切片到池中，并清空内容
+	urls = urls[:0] // 确保清空
 
 	c.Katana.Options.Options.OnResult = func(result output.Result) {
 		if result.Response.StatusCode < 500 {
@@ -81,8 +82,15 @@ func (c *Crawler) Crawl(url string) ([]string, error) {
 	var input = url
 	err := c.Katana.Crawl(input)
 	if err != nil {
+		urlsPool.Put(urls) // 错误时也要归还
 		gologger.Warning().Msgf("Could not crawl %s: %s", input, err.Error())
-		return nil, nil
+		return []string{}, nil // 返回空切片而不是nil
 	}
-	return urls, nil
+	
+	// 复制切片，不返回Pool中的
+	result := make([]string, len(urls))
+	copy(result, urls)
+	urlsPool.Put(urls) // 归还到池
+	
+	return result, nil
 }
