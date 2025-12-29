@@ -2,13 +2,9 @@ package cpdos
 
 import (
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/output"
 	"github.com/wealeson1/wcpvs/pkg/utils"
@@ -36,97 +32,63 @@ func (h *HHO) Scan(target *models.TargetStruct) {
 		return
 	}
 
-	// 首先获取正常响应的基准
+	// 创建验证器
+	verifier := utils.NewPoisoningVerifier()
 	baselineStatus := target.Response.StatusCode
 
 	headerSize := 8192
-	mixSize := 40960
+	maxSize := 40960
 
-	for headerSize <= mixSize {
+	for headerSize <= maxSize {
 		randomHeader := utils.RandomString(5)
-		resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, map[string]string{randomHeader: utils.RandomString(headerSize)})
+		headerValue := utils.RandomString(headerSize)
+
+		// 创建攻击请求（带超大头部）
+		attackReq, err := utils.CloneRequest(target.Request)
 		if err != nil {
-			gologger.Debug().Msgf("HHO test failed for size %d: %v", headerSize, err)
+			gologger.Debug().Msgf("HHO: Failed to clone request: %v", err)
 			headerSize = headerSize + 1024
 			continue
 		}
-		respBodyBytes, err := io.ReadAll(resp.Body)
+		attackReq.Header.Set(randomHeader, headerValue)
+
+		// 创建验证请求（不带超大头部）
+		verifyReq, err := utils.CloneRequest(target.Request)
 		if err != nil {
-			utils.CloseReader(resp.Body)
-			gologger.Error().Msg(err.Error())
 			headerSize = headerSize + 1024
 			continue
 		}
-		utils.CloseReader(resp.Body)
 
-		// 检测是否导致错误（400, 431, 413等）
-		isError := (resp.StatusCode == http.StatusBadRequest ||
-			resp.StatusCode == 431 ||
-			resp.StatusCode == 413) ||
-			(resp.StatusCode == http.StatusBadRequest && strings.Contains(string(respBodyBytes), "Too Large"))
+		// 使用验证框架验证
+		result, err := verifier.Verify(target, attackReq, verifyReq)
+		if err != nil {
+			gologger.Debug().Msgf("HHO verification failed for size %d: %v", headerSize, err)
+			headerSize = headerSize + 1024
+			continue
+		}
 
-		if isError || resp.StatusCode != target.Response.StatusCode {
-			// 检查错误响应是否有缓存标识
-			hasCustomHeaders, _ := utils.HasCustomHeaders(resp)
-			if !hasCustomHeaders {
-				gologger.Debug().Msgf("HHO: Error response has no cache headers for %s", target.Request.URL)
-				headerSize = headerSize + 1024
-				continue
+		// 检查是否存在漏洞
+		if result.IsVulnerable {
+			// 检查是否是特定的错误状态码
+			isExpectedError := (result.AttackStatus == http.StatusBadRequest ||
+				result.AttackStatus == 431 ||
+				result.AttackStatus == 413)
+
+			if isExpectedError || result.AttackStatus != baselineStatus {
+				// 直接使用验证框架保存的body
+				respBody := result.VerifyBody
+
+				// 输出详细报告
+				h.reportVulnerability(target, headerSize, baselineStatus, result.VerifyResp, respBody)
+
+				gologger.Debug().Msgf("HHO poisoning verified in %v (size: %d, attack: %d, verify: %d)",
+					result.TotalTime, headerSize, result.AttackStatus, result.VerifyStatus)
+				return
 			}
-
-			// 检查错误是否被缓存
-			if !utils.IsCacheHit(target, &resp.Header) {
-				gologger.Debug().Msgf("HHO: Error response not cached for %s", target.Request.URL)
-				headerSize = headerSize + 1024
-				continue
-			}
-
-			// 关键：验证持久性 - 发送干净的请求看是否还返回错误
-			isPersistent := h.verifyPersistence(target, baselineStatus)
-			if !isPersistent {
-				gologger.Debug().Msgf("HHO: Error not persistent for %s (size: %d)", target.Request.URL, headerSize)
-				headerSize = headerSize + 1024
-				continue
-			}
-
-			// 确认为CPDoS漏洞 - 输出详细报告
-			h.reportVulnerability(target, headerSize, baselineStatus, resp, respBodyBytes)
-			return
 		}
 
 		headerSize = headerSize + 1024
 	}
-}
-
-// verifyPersistence 验证CPDoS是否持久化
-func (h *HHO) verifyPersistence(target *models.TargetStruct, expectedStatus int) bool {
-	// 等待缓存稳定
-	time.Sleep(500 * time.Millisecond)
-
-	// 发送3次干净的请求
-	errorCount := 0
-	for i := 0; i < 3; i++ {
-		cleanReq, err := utils.CloneRequest(target.Request)
-		if err != nil {
-			continue
-		}
-
-		resp, err := utils.CommonClient.Do(cleanReq)
-		if err != nil || resp == nil {
-			continue
-		}
-		utils.CloseReader(resp.Body)
-
-		// 如果干净的请求也返回错误状态码，说明缓存被投毒了
-		if resp.StatusCode != expectedStatus {
-			errorCount++
-		}
-
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	// 如果3次中至少有2次返回错误，确认为持久
-	return errorCount >= 2
 }
 
 // reportVulnerability 输出HHO CPDoS漏洞的详细报告

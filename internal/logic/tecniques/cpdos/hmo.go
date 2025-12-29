@@ -2,10 +2,8 @@ package cpdos
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/output"
 	"github.com/wealeson1/wcpvs/pkg/utils"
@@ -31,66 +29,58 @@ func NewHmo() *Hmo {
 }
 
 func (h *Hmo) Scan(target *models.TargetStruct) {
-	payloadMap := make(map[string]string)
+	if target.Cache.NoCache {
+		return
+	}
+
+	// 创建验证器
+	verifier := utils.NewPoisoningVerifier()
+
+	// 测试不同的method override组合
 	for _, value := range h.values {
+		// 构建payloadMap（所有headers都设置为相同的method）
+		payloadMap := make(map[string]string)
 		for _, header := range h.headers {
 			payloadMap[header] = value
 		}
-		resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, payloadMap)
+
+		// 创建攻击请求（带Method Override headers）
+		attackReq, err := utils.CloneRequest(target.Request)
 		if err != nil {
-			gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
-			return
+			gologger.Error().Msgf("HMO: Failed to clone request: %v", err)
+			continue
 		}
-		utils.CloseReader(resp.Body)
-		//respBody, err := io.ReadAll(resp.Body)
-		//if err != nil {
-		//	gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
-		//	return
-		//}
-		//长度相差大于总体响应的十分之一，视为异常
-		//diff := len(target.RespBody) - len(respBody)
-		//if diff < 0 {
-		//	diff = -diff
-		//}
-		if resp.StatusCode != target.Response.StatusCode {
-			// 情况，偶尔一次的错误会导致状态码异常，但是又不是Payload造成的异常
-			// 第二次循环的时候又正常了，并且正常的页面是有缓存机制的，就判定存在漏洞了
-			// 预防：响应异常状态码的时候判断下是否存在缓存机制，如果不存在，就继续测试
-			//tmpTarget := &models.TargetStruct{
-			//	Response: resp,
-			//	Cache:    &models.CacheStruct{},
-			//}
-			//hasCache, _ := logic.Checker.IsCacheAvailable(tmpTarget)
-			//if !hasCache {
-			//	continue
-			//}
-			hasCustomHeaders, _ := utils.HasCustomHeaders(resp)
-			if !hasCustomHeaders {
-				continue
-			}
-			tmpReq1, err := utils.CloneRequest(resp.Request)
-			if err != nil {
-				gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
-				return
-			}
-			for range 3 {
-				resp2, err := utils.CommonClient.Do(tmpReq1)
-				if err != nil {
-					gologger.Error().Msgf("Hmo.Scan:%s", err.Error())
-					continue
-				}
-				isHit := utils.IsCacheHit(target, &resp2.Header)
-				statusDiff := target.Response.StatusCode != resp2.StatusCode
-				resp2Body, _ := io.ReadAll(resp2.Body)
-				utils.CloseReader(resp2.Body)
-				if isHit && statusDiff {
-					// 输出详细报告
-					payloadInfo := fmt.Sprintf("Method Override Headers: %v", maps.Keys(payloadMap))
-					attackVector := fmt.Sprintf("HTTP Method Override via headers %v causes error", maps.Keys(payloadMap))
-					ReportCPDoSVulnerability(target, output.VulnTypeCPDoSHMO, attackVector, resp2, resp2Body, tmpReq1, payloadInfo)
-					return
-				}
-			}
+		for header, val := range payloadMap {
+			attackReq.Header.Set(header, val)
+		}
+
+		// 创建验证请求（不带Method Override headers）
+		verifyReq, err := utils.CloneRequest(target.Request)
+		if err != nil {
+			continue
+		}
+
+		// 使用验证框架验证
+		result, err := verifier.Verify(target, attackReq, verifyReq)
+		if err != nil {
+			gologger.Debug().Msgf("HMO verification failed for method %s: %v", value, err)
+			continue
+		}
+
+		// 检查是否存在漏洞
+		if result.IsVulnerable {
+			// 直接使用验证框架保存的body
+			respBody := result.VerifyBody
+
+			// 输出详细报告
+			payloadInfo := fmt.Sprintf("Method Override Headers: %v", maps.Keys(payloadMap))
+			attackVector := fmt.Sprintf("HTTP Method Override via headers %v causes error", maps.Keys(payloadMap))
+			ReportCPDoSVulnerability(target, output.VulnTypeCPDoSHMO, attackVector, 
+				result.VerifyResp, respBody, attackReq, payloadInfo)
+			
+			gologger.Debug().Msgf("HMO poisoning verified in %v (method: %s, attack: %d, verify: %d)", 
+				result.TotalTime, value, result.AttackStatus, result.VerifyStatus)
+			return
 		}
 	}
 }

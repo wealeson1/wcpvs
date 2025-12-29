@@ -18,14 +18,24 @@ import (
 var ParameterCP *PCPTechniques
 
 type PCPTechniques struct {
-	PcpParams map[string][]string
-	RWLock    sync.RWMutex
+	PcpParams       map[string][]string
+	RWLock          sync.RWMutex
+	VulnParams      map[string][]VulnParam // 收集每个URL的所有漏洞参数
+	VulnParamsMutex sync.Mutex
+}
+
+type VulnParam struct {
+	Param      string
+	StatusCode int
+	VulnType   string
 }
 
 func NewParameterCP() *PCPTechniques {
 	return &PCPTechniques{
-		PcpParams: make(map[string][]string),
-		RWLock:    sync.RWMutex{},
+		PcpParams:       make(map[string][]string),
+		RWLock:          sync.RWMutex{},
+		VulnParams:      make(map[string][]VulnParam),
+		VulnParamsMutex: sync.Mutex{},
 	}
 }
 
@@ -135,7 +145,9 @@ func (p *PCPTechniques) Scan(target *models.TargetStruct) {
 	wg.Add(1)
 	go p.findVulnerability(target, paramsNoGetCacheKeys, &wg)
 	wg.Wait()
-	// 漏洞已在findVulnerability中详细输出，这里不再重复
+
+	// 收集完所有漏洞参数后，统一报告
+	p.reportCollectedVulnerabilities(target)
 }
 
 func (p *PCPTechniques) findVulnerabilityByAnyGet(target *models.TargetStruct) (bool, error) {
@@ -197,6 +209,7 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 		return
 	}
 
+	// 状态码不同就可能是投毒（包括301/429等）
 	if resp.StatusCode != target.Response.StatusCode {
 		mid := len(params) / 2
 		leftPart := params[:mid]
@@ -292,7 +305,7 @@ func (p *PCPTechniques) findVulnerability(target *models.TargetStruct, params []
 func (p *PCPTechniques) reportAnyGetVulnerability(target *models.TargetStruct, param, value string,
 	resp *http.Response, respBody []byte) {
 
-	// 构建请求
+	// 构建请求（已被注释，不再使用旧的立即报告逻辑）
 	testReq, err := GetSourceRequestWithCacheKey(target)
 	if err != nil || testReq == nil {
 		// Fallback: 使用原始请求
@@ -338,9 +351,27 @@ func (p *PCPTechniques) reportAnyGetVulnerability(target *models.TargetStruct, p
 	report.Print()
 }
 
-// reportVulnerability 输出漏洞的详细报告
+// reportVulnerability 收集漏洞参数（不立即报告）
 func (p *PCPTechniques) reportVulnerability(target *models.TargetStruct, pvMap map[string]string,
 	resp *http.Response, respBody []byte, vulnType string) {
+
+	// 收集漏洞参数到map中
+	targetURL := target.Request.URL.String()
+	p.VulnParamsMutex.Lock()
+	defer p.VulnParamsMutex.Unlock()
+
+	for param := range pvMap {
+		p.VulnParams[targetURL] = append(p.VulnParams[targetURL], VulnParam{
+			Param:      param,
+			StatusCode: resp.StatusCode,
+			VulnType:   vulnType,
+		})
+	}
+
+	// 不再立即报告，等收集完所有参数后统一报告
+	return
+
+	// 下面的代码暂时注释，保留原始报告逻辑作为模板
 
 	// 构建请求
 	testReq, err := GetSourceRequestWithCacheKey(target)

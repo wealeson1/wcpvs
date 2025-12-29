@@ -2,11 +2,9 @@ package cpdos
 
 import (
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/projectdiscovery/gologger"
-	"github.com/wealeson1/wcpvs/internal/logic/tecniques"
 	"github.com/wealeson1/wcpvs/internal/models"
 	"github.com/wealeson1/wcpvs/pkg/output"
 	"github.com/wealeson1/wcpvs/pkg/utils"
@@ -31,58 +29,53 @@ func NewHmc() *Hmc {
 }
 
 func (h *Hmc) Scan(target *models.TargetStruct) {
+	if target.Cache.NoCache {
+		return
+	}
+
+	// 创建验证器
+	verifier := utils.NewPoisoningVerifier()
+
+	// 测试不同的元字符组合
 	for _, header := range h.headers {
 		for _, value := range h.values {
-			time.Sleep(500 * time.Millisecond)
-			resp, err := tecniques.GetRespNoPayload(target, tecniques.HEADER, map[string]string{header: value})
+			time.Sleep(100 * time.Millisecond) // 减少延迟，验证框架会处理等待
+
+			// 创建攻击请求（带元字符的header）
+			attackReq, err := utils.CloneRequest(target.Request)
+			if err != nil {
+				gologger.Debug().Msgf("HMC: Failed to clone request: %v", err)
+				continue
+			}
+			attackReq.Header.Set(header, value)
+
+			// 创建验证请求（不带元字符header）
+			verifyReq, err := utils.CloneRequest(target.Request)
 			if err != nil {
 				continue
 			}
-			utils.CloseReader(resp.Body)
-			if resp.StatusCode != target.Response.StatusCode {
-				// 情况，偶尔一次的错误会导致状态码异常，但是又不是Payload造成的异常
-				// 第二次循环的时候又正常了，并且正常的页面是有缓存机制的，就判定存在漏洞了
-				// 预防：响应异常状态码的时候判断下是否存在缓存机制，如果不存在，就继续测试
-				//tmpTarget := &models.TargetStruct{
-				//	Response: resp,
-				//	Cache:    &models.CacheStruct{},
-				//}
-				//hasCache, _ := logic.Checker.IsCacheAvailable(tmpTarget)
-				//if !hasCache {
-				//	continue
-				//}
-				hasCustomHeaders, _ := utils.HasCustomHeaders(resp)
-				if !hasCustomHeaders {
-					continue
-				}
-				tmpReq1, err := utils.CloneRequest(resp.Request)
-				if err != nil {
-					gologger.Error().Msg(err.Error())
-					return
-				}
-				for range 3 {
-					resp2, err := utils.CommonClient.Do(tmpReq1)
-					if err != nil {
-						gologger.Error().Msgf("Hmc.Scan:%s", err.Error())
-						continue
-					}
 
-					tmpReq1, err = utils.CloneRequest(resp2.Request)
-					if err != nil {
-						gologger.Error().Msgf("Hmc.Scan:%s", err.Error())
-						continue
-					}
-					if utils.IsCacheHit(target, &resp2.Header) && target.Response.StatusCode != resp2.StatusCode {
-						resp2Body, _ := io.ReadAll(resp2.Body)
-						utils.CloseReader(resp2.Body)
-						// 输出详细报告
-						payloadInfo := fmt.Sprintf("Meta-character in header: %s=%s", header, value)
-						attackVector := fmt.Sprintf("Meta-character %s in header %s causes error", value, header)
-						ReportCPDoSVulnerability(target, output.VulnTypeCPDoSHMC, attackVector, resp2, resp2Body, tmpReq1, payloadInfo)
-						return
-					}
-					utils.CloseReader(resp2.Body)
-				}
+			// 使用验证框架验证
+			result, err := verifier.Verify(target, attackReq, verifyReq)
+			if err != nil {
+				gologger.Debug().Msgf("HMC verification failed for %s=%s: %v", header, value, err)
+				continue
+			}
+
+			// 检查是否存在漏洞
+			if result.IsVulnerable {
+				// 直接使用验证框架保存的body
+				respBody := result.VerifyBody
+
+				// 输出详细报告
+				payloadInfo := fmt.Sprintf("Meta-character in header: %s=%s ⚠️", header, value)
+				attackVector := fmt.Sprintf("Meta-character %s in header %s causes error", value, header)
+				ReportCPDoSVulnerability(target, output.VulnTypeCPDoSHMC, attackVector,
+					result.VerifyResp, respBody, attackReq, payloadInfo)
+
+				gologger.Debug().Msgf("HMC poisoning verified in %v (header: %s=%s, attack: %d, verify: %d)",
+					result.TotalTime, header, value, result.AttackStatus, result.VerifyStatus)
+				return
 			}
 		}
 	}

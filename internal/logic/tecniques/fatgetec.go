@@ -2,7 +2,6 @@ package tecniques
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/projectdiscovery/gologger"
@@ -120,52 +119,46 @@ func (f *FatGet) fatGetDosScan(target *models.TargetStruct) {
 		return
 	}
 
-	tmpReq, err := GetSourceRequestWithCacheKey(target)
+	// 创建验证器
+	verifier := utils.NewPoisoningVerifier()
+
+	// 准备测试参数
+	param := utils.RandomString(5)
+	value := utils.RandomString(5)
+
+	// 创建攻击请求：GET + POST body
+	attackReq, err := GetSourceRequestWithCacheKey(target)
 	if err != nil {
 		gologger.Error().Msg("fatGetDosScan: " + err.Error())
 		return
 	}
-	tmpReq = utils.AddParam(tmpReq, "POST", utils.RandomString(5), utils.RandomString(5))
-	resp, err := utils.CommonClient.Do(tmpReq)
+	attackReq = utils.AddParam(attackReq, "POST", param, value)
+
+	// 创建验证请求：正常GET（不带POST body）
+	verifyReq, err := GetSourceRequestWithCacheKey(target)
 	if err != nil {
 		gologger.Error().Msg("fatGetDosScan: " + err.Error())
 		return
 	}
-	defer utils.CloseReader(resp.Body)
-	respBody, err := io.ReadAll(resp.Body)
+
+	// 使用验证框架验证
+	result, err := verifier.Verify(target, attackReq, verifyReq)
 	if err != nil {
-		gologger.Error().Msg("fatGetDosScan: " + err.Error())
+		gologger.Error().Msgf("fatGetDosScan verification failed: %v", err)
 		return
 	}
-	diff := len(target.RespBody) - len(respBody)
-	if diff < 0 {
-		diff = -diff
-	}
-	//|| diff > (len(target.RespBody)/3)
-	if resp.StatusCode != target.Response.StatusCode {
-		param := utils.RandomString(5)
-		value := utils.RandomString(5)
-		for range 3 {
-			tmpReq, err := utils.CloneRequest(resp.Request)
-			if err != nil {
-				gologger.Error().Msg(err.Error())
-				continue
-			}
-			tmpReq = utils.AddParam(tmpReq, "POST", param, value)
-			resp2, err := utils.CommonClient.Do(tmpReq)
-			if err != nil {
-				gologger.Error().Msg(err.Error())
-				continue
-			}
-			isHit := utils.IsCacheHit(target, &resp2.Header)
-			resp2Body, _ := io.ReadAll(resp2.Body)
-			utils.CloseReader(resp2.Body)
-			if isHit {
-				// 输出详细报告
-				f.reportVulnerability(target, param, value, resp2, resp2Body)
-				return
-			}
-		}
+
+	// 检查是否存在漏洞
+	if result.IsVulnerable {
+		// 直接使用验证框架保存的body（无需重新请求）
+		verifyResp := result.VerifyResp
+		respBody := result.VerifyBody
+
+		// 输出详细报告
+		f.reportVulnerability(target, param, value, verifyResp, respBody)
+		
+		gologger.Debug().Msgf("Fat GET poisoning verified in %v (attack: %d, verify: %d, hit: %v)", 
+			result.TotalTime, result.AttackStatus, result.VerifyStatus, result.CacheHit)
 	}
 }
 
